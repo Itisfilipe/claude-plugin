@@ -16,18 +16,19 @@ Optional argument: $ARGUMENTS
 - **`validate`** — skip to Phase G on the config already there; nothing asked or written.
   **Run A1 first even so** — Phase G assumes the repository root.
 - **A detector name** — `ecosystem` (A2–A3), `verify` (A4), `ci-inspect` (A5), `branches` (A6),
-  `engines` (A7) — inspect and report just that part. (`ci-inspect`, not `ci` — the bare word is the write mode.)
-- **`docs`** — the documentation-hooks mode, the one narrowed run that WRITES: A1 + A8, Phase
+  `engines` (A7) — inspect and report just that part (`ci-inspect`, not `ci`: the bare word writes).
+- **`docs`** — the documentation-hooks mode, a narrowed run that WRITES: A1 + A8, Phase
   D's three documentation questions plus `release.deployVerification`, then write **only** the
   `docs` block and that key (create-with-just-those-keys or Phase F merge, `release.docsRepo`
   migration included), scaffold E2, run Phase G check 7 alone.
-- **`ci`** — the CI-cost mode, the second narrowed run that WRITES, and the only mode that
-  touches a workflow file: A1 + A5; detect which of the four mechanics in
+- **`ci`** — the CI-cost mode, the second narrowed run that WRITES, the only mode touching a
+  workflow file: A1 + A5; detect which of the four mechanics in
   `${CLAUDE_PLUGIN_ROOT}/skills/setup/references/ci-cost-patterns.md` each pull-request
   workflow carries; show the **exact diff** per mechanic missing OR present-but-inert; apply
-  only accepted diffs — nothing else rewritten. Write `ci.expectedRunsPerPullRequest` if absent. **Draft-gate diffs accepted while the three
+  only accepted diffs — nothing else rewritten. Write `ci.expectedRunsPerPullRequest` if absent.
+  With `release.clearance` set, offer the fifth mechanic too, **release ordering** (§E). **Draft-gate diffs accepted while the three
   `review.*` CI-ordering booleans are `false` → propose flipping them `true` in the same
-  change.** Run Phase G's CI checks. Offer `/devstride:ci-audit` first for numbers.
+  change.** Run Phase G's CI checks; offer `/devstride:ci-audit` first.
 - **Nothing** — the full run: inspect, ask, write, scaffold, validate.
 
 **Run each mode's prerequisites silently — A1 always, A2–A3 before A4.** A narrowed run reports
@@ -36,7 +37,8 @@ fewer keys, never worse ones, **stops after Phase B and writes nothing**; a full
 
 **The write boundary — the whole of it**: `.claude/ds-config.json`; in E2 only, the scaffolded
 skills (never overwriting); in `ci` mode only, the pull-request workflows under
-`ci.workflowGlobs` (each change a diff, applied on an explicit yes). Nothing else, ever — no git
+`ci.workflowGlobs` and the release-tower pair (each change a diff, applied on an explicit yes).
+Nothing else, ever — no git
 mutation, no installs, no DevStride **write** tool. **Phases A–D are strictly read-only**:
 `git status --porcelain` stays byte-identical until the write.
 

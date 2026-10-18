@@ -1,0 +1,120 @@
+name: Release tower
+
+# One cleared release at a time, enforced by GitHub itself. A pull request into the
+# production branch passes `release-tower` when it is a hotfix, or the OLDEST open
+# release pull request (the lowest number); a second release pull request is held
+# with "<head> (#n) is on final; this release waits" and turns green by itself when
+# the first merges or closes; any other head gets a one-line retarget. The
+# `release-tower-override` label (releaseTower.overrideLabel) passes a pull request
+# an owner has approved by hand. The clearance a session claims before it starts a
+# release (release.clearance, the plugin's release skill) is the speed bump; this
+# check is the floor — make it REQUIRED on the production branch's ruleset once it
+# has posted green on one real release pull request. Even an administrator cannot
+# then land a second release beside the first.
+#
+# Written by `/devstride:setup ci` from the devstride plugin's template, with the
+# production branch name filled in below (the one value a trigger filter cannot read
+# from a file). Everything else — the release and hotfix patterns, the label — is
+# read at run time from `.claude/ds-config.json` by .github/scripts/release-tower-check.mjs.
+#
+# pull_request_target ON PURPOSE: the workflow definition, the checker and the
+# config all come from the repository's default branch, so a pull request cannot
+# edit its own gate. NEVER check out or execute the pull request head here — the
+# verdict needs only the head's NAME, its number and the labels, passed through
+# env:, never interpolated into a script (branch names and labels are user-controlled).
+#
+# It runs on drafts too (it costs seconds). `edited` covers a pull request
+# retargeted onto the production branch; labeled/unlabeled re-evaluate with the
+# CURRENT label set. The `closed` job re-runs the newest release-tower run of each
+# release pull request still open, so the next one in line goes green without a push.
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, labeled, unlabeled, edited, closed]
+    branches: [{{PRODUCTION_BRANCH}}]
+
+permissions:
+  contents: read
+  pull-requests: read
+  actions: write
+
+concurrency:
+  group: release-tower-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  release-tower:
+    # The job name IS the required-check context on the production branch's ruleset.
+    name: release-tower
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # The default branch only (pull_request_target's default ref), and only the
+      # two files the verdict reads.
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            .github/scripts/release-tower-check.mjs
+            .claude/ds-config.json
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Check the head branch against the open release pull requests
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          NUMBER: ${{ github.event.pull_request.number }}
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+        run: |
+          gh pr list --repo "$GITHUB_REPOSITORY" --base "$BASE_REF" --state open --limit 100 \
+            --json number,headRefName > open-prs.json
+          set +e
+          verdict="$(node .github/scripts/release-tower-check.mjs check \
+            --head "$HEAD_REF" --base "$BASE_REF" --number "$NUMBER" --labels "$LABELS" \
+            --config .claude/ds-config.json --open-prs open-prs.json)"
+          code=$?
+          set -e
+          echo "$verdict"
+          if [ "$code" -ne 0 ]; then
+            echo "::error title=release-tower::$verdict"
+          fi
+          exit "$code"
+
+  rerun-waiting:
+    # A release pull request closed (merged or abandoned): the release behind it is
+    # now on final, so its last verdict is stale. Re-run it rather than wait for a push.
+    name: re-run the waiting releases
+    if: github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            .github/scripts/release-tower-check.mjs
+            .claude/ds-config.json
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Re-run release-tower on each release pull request still open
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CLOSED_HEAD: ${{ github.event.pull_request.head.ref }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          gh pr list --repo "$GITHUB_REPOSITORY" --base "$BASE_REF" --state open --limit 100 \
+            --json number,headRefName,headRefOid > open-prs.json
+          gh run list --repo "$GITHUB_REPOSITORY" --workflow release-tower.yaml --limit 100 \
+            --json databaseId,headBranch,headSha,status > runs.json
+          node .github/scripts/release-tower-check.mjs reruns --closed-head "$CLOSED_HEAD" \
+            --config .claude/ds-config.json --open-prs open-prs.json --runs runs.json \
+          | while read -r run_id; do
+              [ -n "$run_id" ] || continue
+              echo "re-running release-tower run $run_id"
+              gh api -X POST "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/rerun" >/dev/null || echo "::warning::could not re-run $run_id"
+            done

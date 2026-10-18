@@ -5,7 +5,7 @@ description: Diagnose delivery-loop prerequisites read-only — environment, plu
 
 **Human output.** Read `${CLAUDE_PLUGIN_ROOT}/skills/build-item/references/plain-language-output.md` once per top-level run; composed skills reuse it. Apply it to every message.
 
-Diagnose whether this checkout can run the delivery loop and give exact repairs. Optional section:
+Diagnose whether this checkout can run the delivery loop; give exact repairs. Optional section:
 `env`, `plugin`, `devstride`, `config`, `ci`, `gates`, or `docs`: $ARGUMENTS
 With a repo root, run §4's status-line check on every invocation regardless of section; otherwise N/A.
 
@@ -32,34 +32,34 @@ next action. For each failure symptom, read
 
 - **git** — `git --version`; confirm you are inside a repo (`git rev-parse --is-inside-work-tree`).
   Not a repo → the rest is N/A; say so and stop the section.
-- **An `origin` remote** — `git remote get-url origin`, checked **by name** because delivery skills
-  hardcode it. Other remotes but no `origin` → say which.
-- **gh present** — `gh --version`. Missing → the whole delivery half is unavailable. Fix: install
-  GitHub CLI (`brew install gh`, or cli.github.com).
+- **An `origin` remote** — `git remote get-url origin`, checked **by name** because delivery
+  skills hardcode it. Other remotes but no `origin` → name them.
+- **gh present** — `gh --version`. Missing → the whole delivery half is unavailable. Fix:
+  install GitHub CLI (cli.github.com).
 - **gh authenticated** — `gh auth status`. Fix: `gh auth login`.
 - **gh scopes, for the ACTIVE account** — read the account marked active (`gh auth status`
   can list several). Minimum `repo` + `read:org`, plus `workflow` if the loop edits workflow
-  files. Fix: `gh auth refresh -s repo,read:org` — **including `workflow` in the SAME list
-  when that is the missing scope**. Auth from `GH_TOKEN`/`GITHUB_TOKEN` → say so: `refresh`
-  cannot touch an environment token; unset it or reissue with the scopes.
-- **Forge** — non-GitHub `origin`: delivery assumes GitHub/Actions; planning still works.
+  files. Fix: `gh auth refresh -s repo,read:org` — **with `workflow` in the SAME list when that
+  is the missing scope**. Auth from `GH_TOKEN`/`GITHUB_TOKEN` → say so: `refresh` cannot touch
+  an environment token; unset it or reissue with the scopes.
+- **Forge** — non-GitHub `origin`: delivery assumes GitHub; planning still works.
 
 ## 2. Plugin install (`plugin`)
 
 - **Installed and enabled** — parse `claude plugin list --json`; report its disk version. Also name
   the running version (disk and runtime differ until reload/restart).
-- **Marketplace registered** — `claude plugin marketplace list`. Absent → the plugin cannot update.
-  Fix: `claude plugin marketplace add devstride/claude-plugin`.
+- **Marketplace registered** — `claude plugin marketplace list`. Absent → no updates. Fix:
+  `claude plugin marketplace add devstride/claude-plugin`.
 - **Version currency** — run
   `${CLAUDE_PLUGIN_ROOT}/skills/doctor/references/version-currency.md`: use its strict shared tag
   helper (not Releases) and report installed/newest. If behind, tell the user to invoke
   `/devstride:update` separately and stop; Doctor must not invoke this explicit-only command. If the
   skill is unavailable, print exact id/scope bootstrap commands, then reload and check for errors.
-- **`python3` on PATH** — the session-start hook and the reviewer wait script need it. FAIL with
+- **`python3` on PATH** — the session-start hook and the reviewer wait script need it. FAIL,
   a platform install hint.
 - **Learned reviewer latency** — from
   `${XDG_CACHE_HOME:-~/.cache}/devstride-plugin/reviewer-latency.json`, report each reviewer's
-  samples, p50, p95, and derived bound under this repo's `pollTimeoutMinutes`; below the sample
+  samples, p50, p95 and derived bound under `pollTimeoutMinutes`; below the sample
   minimum report `cold — the wait uses pollTimeoutMinutes`. INFO only; schema/format:
   `${CLAUDE_PLUGIN_ROOT}/skills/review/references/reviewer-latency.md`.
 - **Session-start check** — read the per-repository record
@@ -69,8 +69,8 @@ next action. For each failure symptom, read
   say never run here (pre-1.2.0 plugin, disabled hooks, or
   `DEVSTRIDE_PLUGIN_UPDATE_CHECK=0`). Modes: `notify` fallback; `auto-update` only for a repo-bound
   project/local install; `pinned` never updates. Shared user copies hand off to update, managed
-  copies to their administrator, and ambiguous copies to Doctor. Explain every result using the
-  reference. A verified disk change needs plugin reload (restart only if reload fails).
+  copies to their administrator, and ambiguous copies to Doctor. A verified disk change needs
+  plugin reload (restart only if reload fails).
 - **Repo declaration** — `.claude/settings.json` enables but does not install. Print
   `version-currency.md`'s install line for this repository's rows (its `enabledPlugins` id). Always run both
   `git ls-files --error-unmatch .claude/settings.json` (tracked?) and
@@ -81,7 +81,7 @@ next action. For each failure symptom, read
 - **A server exists and is CONNECTED** — `claude mcp list`. The bundled one appears as
   `plugin:devstride:devstride`; a plain `devstride` entry is one you or your project configured.
 - **Not connected.** Say: until sign-in, skills have no DevStride tools and nothing prompts; the
-  symptom is missing tools, not an auth error. Fix `/mcp` and browser sign-in.
+  symptom is missing tools, not an auth error. Fix: `/mcp`, then browser sign-in.
 - **More than one connected** — FAIL: the two tool namespaces leave calls able to reach either
   organization. Inspect with
   `claude mcp get <name>`; OAuth uses `claude mcp logout <name>`, API-key headers require
@@ -149,14 +149,13 @@ next action. For each failure symptom, read
   `prototype` is NOT a contradiction — it names the engine without scheduling it.
   `profileOverrides`: report as a WARNING any name that is not a knob in the contract's table;
   nothing else.
-- **Unrecognized keys — report as a WARNING, not a typo accusation.** List keys you do not
-  recognize and let the user judge. **Exclude by convention**: any key whose leaf name starts with
+- **Unrecognized keys — a WARNING, not a typo accusation.** List them and let the user judge. **Exclude by convention**: any key whose leaf name starts with
   `_` (the `_*_readme` documentation convention, used pervasively in real configs) and `$schema`.
   Check against the published [configuration reference](https://docs.devstride.com/developer-experience/agentic-skills/configuration-reference),
   **not** by grepping skill prose — several real keys are descriptive and appear in no skill.
   Where a key is one edit away from a real one, offer that as a possibility, not a verdict.
-  `profile`, `profileOverrides`, `supportTrain` and `config-defaults.md`'s `release.*` keys are
-  recognized even if unpublished.
+  `profile`, `profileOverrides`, `supportTrain`, `releaseTower` and `config-defaults.md`'s
+  `release.*` keys are recognized even if unpublished.
 - **`localEnvironment`** — report the block. Absent → the shipped default is in force (every
   command `null`, `instanceBoundTo: none`): `branch-hotfix` asks before touching a database.
   Present → report `instanceBoundTo` and each command's resolution per the rule below.
@@ -192,10 +191,10 @@ next action. For each failure symptom, read
   `generated.regenCommand`,
   `preShipChecks[].command`, each non-null `localEnvironment.*` command, and `stage.resolve`): split on `&&` and `;`, take the first token of **each** segment, and
   skip shell builtins (`cd backend && pnpm test` starts with `cd`, which always resolves). A
-  single-word command that does not resolve may be a shell alias or
-  function rather than a real gap — report "not on PATH (may be an alias)" rather than a flat FAIL.
-- **`conventionsDoc` exists** — if set, the file must be present; the build engine reads it, and
-  a missing one quietly costs you that.
+  single-word command that does not resolve may be a shell alias or function — report "not on
+  PATH (may be an alias)", not a flat FAIL.
+- **`conventionsDoc` exists** — set → the file must be present; the build engine reads it, and a
+  missing one quietly costs that.
 
 ## 5. The CI draft gate (`ci`)
 
@@ -208,12 +207,11 @@ legible until all three and the workflows agree.
 
 Scope the audit to workflows with an `on: pull_request` trigger. A workflow triggered only by
 `pull_request_review` or `pull_request_review_comment` is PR-related but must run on drafts —
-exempt it, and do not advise gating it. Likewise a **convention-only workflow** — the shape is
-defined once, under pattern D of
-`${CLAUDE_PLUGIN_ROOT}/skills/setup/references/ci-cost-patterns.md`, and covers both the
-`opened`-only and the `opened` + `converted_to_draft` + `ready_for_review` forms. It is a policy
-notice, not a CI gate: remove it from the population before the four-events, concurrency and
-draft-gate checks; list it under INFO as present.
+exempt it, and do not advise gating it. Likewise a **convention-only workflow** (pattern D of
+`${CLAUDE_PLUGIN_ROOT}/skills/setup/references/ci-cost-patterns.md`, in its `opened`-only and
+`opened` + `converted_to_draft` + `ready_for_review` forms) is a policy notice, not a CI gate:
+remove it from the population before the four-events, concurrency and draft-gate checks; list it
+under INFO as present.
 
 Two separate checks, and **the first is the one everyone misses**:
 
@@ -238,10 +236,9 @@ Two separate checks, and **the first is the one everyone misses**:
     against the base branch (a promotion merge has the tree the base just tested). **Judge it
     on whether it CAN FIRE, not on whether the step exists** — pattern C holds the condition:
     the merge-promotion path reads `HEAD^2`, which must be in the checkout (depth 0 or 2+, or
-    a deepening fetch; the effect, not the flag); otherwise it is *present but inert* — report
-    at the same WARNING level, naming what is missing. A step in a job with NO checkout is a
-    separate, harsher finding: it fails the gate job and everything that `needs` it on every
-    production push (why these shapes matter: `silent-failures.md`);
+    a deepening fetch); otherwise it is *present but inert* — the same WARNING, naming what is
+    missing. A step in a job with NO checkout is a harsher finding: it fails the gate job and
+    everything that `needs` it on every production push (why: `silent-failures.md`);
   - a draft-convention check that fails a non-draft pull request opened by a person (INFO, not a
     warning — it is a courtesy to humans, not a gate).
   Fix for all three: `/devstride:setup ci`, which shows each change as a diff.
@@ -251,7 +248,7 @@ Two separate checks, and **the first is the one everyone misses**:
 
 ## 6. Merge gates (`gates`)
 
-The point: **find out whether anything actually checks the code before it merges.**
+**Find out whether anything actually checks the code before it merges.**
 
 - **When fast merges apply.** They apply when the resolved working base is an **epic integration
   branch** and `epicIntegrationBranches.fastStoryMerges.enabled` is on (the default). Such an item
@@ -261,11 +258,10 @@ The point: **find out whether anything actually checks the code before it merges
   its release-boundary width from
   `${CLAUDE_PLUGIN_ROOT}/skills/plan/references/delivery-profiles.md`. Type-check/touched-suite
   story gates need `verify.typecheck` and, where available, `verify.testSingle`; the epic's full
-  gate needs `verify.test` unless an exact matching CI job owns it. Enterprise additionally needs
-  lint where applicable. Name the missing command and which boundary would otherwise be unchecked.
+  gate needs `verify.test` unless an exact matching CI job owns it. Name the missing command and which boundary would otherwise be unchecked.
 - **Give the fix that matches their config**: check `integrationBranch` FIRST — an explicit
-  value takes precedence over `epicIntegrationBranches.enabled` entirely, so with one set,
-  flipping the flag changes nothing. Say which case applies: set the verify commands, or clear
+  value overrides `epicIntegrationBranches.enabled` entirely, so with one set, flipping the flag
+  changes nothing. Say which case applies: set the verify commands, or clear
   `integrationBranch` **and** disable epic branches.
 - **Review roster** — report `review.localCommand`, optional `review.localAssistCommand`, and
   `review.automatedReviewers` with each `baseBranches` (absent: every PR; empty:
@@ -278,10 +274,9 @@ The point: **find out whether anything actually checks the code before it merges
   prints verbatim as that command's `Found:`. A catalogued engine whose command lacks its
   read-only flag is a **FAIL** — Why it matters: the reviewer can write to the tree it reviews;
   Fix: the script's `Fix:` line, verbatim. An `UNVERIFIABLE` line (uncatalogued engine, held to
-  the contract only) is reported as itself — never a FAIL, and never a fault for being
-  unrecognised. A legacy base-only command may omit placeholders (` --base <value>` is
-  appended), but WARN that contextual follow-ups will be skipped. `/devstride:setup review`
-  migrates — a tradeoff, not an upgrade (`silent-failures.md` says why).
+  the contract only) is reported as itself, never a FAIL. A legacy base-only command may omit
+  placeholders (` --base <value>` is appended), but WARN that contextual follow-ups will be
+  skipped. `/devstride:setup review` migrates — a tradeoff, not an upgrade (`silent-failures.md`).
 - **`review.mandatoryLenses`** — absent or `[]` → N/A. Each entry needs `name`, `paths` (a
   non-empty array) and `question`; anything else → FAIL naming the entry (the skills ignore it
   aloud). WARN a glob with no `/`, or a bare `*`/`**`: it matches every file, so the lens runs on
@@ -304,12 +299,17 @@ Neither set → **N/A**, not a failure: the release skill's docs pass reports it
   No `check` mode → FAIL naming the template to rebuild from.
 - **A legacy `release.docsRepo` block**, with or without a `docs` block beside it → FAIL: the
   release skill never acts on it. Fix: `/devstride:setup docs` (migrates and removes it).
-- **`release.deployVerification`** — if set, its first token resolves (§4's rule); never run
-  it. Unset → the release skill asks the owner to confirm the deploy; not a gap.
+- **`release.deployVerification`** — set → its first token resolves (§4's rule), never run.
+  Unset → the release skill asks the owner to confirm the deploy; not a gap.
 - **`release.postDeployCheckSkill`** — set → `.claude/skills/<name>/SKILL.md` must exist
   (missing → FAIL, a dangling hook; contract:
   `${CLAUDE_PLUGIN_ROOT}/skills/release/references/post-deploy-check.md`). Unset → N/A; the close-out
   reports `not configured`.
+- **`release.clearance`** — null → N/A. Both `provider` and `commands`, a `provider` other than
+  `github`, or a missing verb → FAIL. `provider: github` → run its `status` once (read-only),
+  report the line; `UNKNOWN` FAILs naming the `gh` error. No `.github/workflows/release-tower.yaml`
+  beside it → INFO: `/devstride:setup ci` offers the floor. Contract:
+  `${CLAUDE_PLUGIN_ROOT}/skills/release/references/clearance.md`.
 - **Say the release-notes default** — notes only on `--release-notes`; the loop never decides a
   release "deserves" one.
 

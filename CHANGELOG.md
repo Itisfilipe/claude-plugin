@@ -8,6 +8,54 @@ for what each version component means here and how a release is cut.
 
 ## [Unreleased]
 
+## [3.11.0] — 2026-10-18
+
+### Added
+
+- **Release clearance: one cleared release at a time, across every machine and account.** A
+  repository whose releases are cut from more than one machine, or by more than one person or
+  agent, can set `release.clearance` (`{ "provider": "github" }`, or five commands of its own).
+  The release skill then CLAIMS clearance before it touches the support train or cuts a release
+  branch (step 0a, `claim --wait`), waits and names who holds it when denied, heartbeats each
+  phase so a crashed session cannot hold the runway forever, and hands clearance back as the
+  last act of its close-out — after the sync pull request and the branch deletion, so a failed
+  post-deploy check keeps it for the retry. A stale clearance (heartbeat older than
+  `staleMinutes`, default 20) whose pull request merged or closed, or that never opened one, is
+  reclaimed by the next claim; one whose pull request is still open is ADOPTED with the owner's
+  yes, on the existing adopted-release-branch path, never deleted. Nothing ever blocks a hotfix:
+  `branch-hotfix` never claims, and the release in flight learns of a landed hotfix from the
+  provider's `status` and re-reviews. Absent or null, nothing changes.
+  - **The built-in provider** (`skills/release/scripts/clearance-github.sh`) keeps the clearance in
+    the custom ref `refs/clearance/release`, pointing at a tag object whose message is the record
+    (holder, user, machine, purpose, phase, branch, pull request, takenAt, heartbeatAt). Creating
+    the ref is the atomic claim — GitHub answers 422 to every claimant but one — so there is no
+    look-then-act; the ref is neither a branch nor a tag, so it triggers no workflow and matches no
+    ruleset pattern. It needs only `gh`. It writes a local record
+    (`~/.cache/devstride/release-clearance.json`) so a hook can answer "does this session hold
+    clearance?" without the network. The holder identity is the same rule as a pool lease
+    (`DEVSTRIDE_LEASE_TOKEN`, else the agent session ids, else a printed token).
+  - **The contract** — five commands (`claim`, `status`, `heartbeat`, `release`, `adopt`), their
+    exit codes and first lines — is `skills/release/references/clearance.md`, so a repository can
+    supply its own provider. `status` lists the oldest open release pull request (on final), the
+    ones waiting, and every hotfix landed since the claim — derived from GitHub, never recorded.
+  - **The status line gains a `Release` segment** (`release/26-10-17 · alice · ci`, `· STALE`
+    past the threshold) from the provider's `status --short`, cached like the PR segment and blank
+    when clear; the managed script marker is now v3.2.0. Transient: never asked about.
+  - **`setup ci` offers a fifth mechanic, release ordering**, once clearance is set: the
+    `release-tower` GitHub check from `skills/setup/references/ci-templates/` — `pull_request_target`
+    on the production branch, run from the default branch, the head never checked out — which
+    passes a hotfix head, the oldest open release pull request and a pull request carrying
+    `releaseTower.overrideLabel` (default `release-tower-override`), holds a later release pull
+    request with "<head> (#n) is on final; this release waits" and re-runs it by itself when the
+    one ahead closes, and gives any other head a retarget line. Making it required on the production
+    branch's ruleset is the owner's change, after it has posted green on a real release.
+  - `doctor` audits `release.clearance` (both keys, an unknown provider, a missing verb, an
+    unreadable ref) and recognizes `releaseTower`.
+
+### Cost
+
+(generated at release)
+
 ## [3.10.0] — 2026-10-06
 
 ### Fixed
@@ -1837,7 +1885,8 @@ holes found while fixing them.
 - Initial scaffold: plugin manifest, marketplace entry, MIT license, and repository conventions.
   Installed an empty plugin — no skills yet.
 
-[unreleased]: https://github.com/devstride/claude-plugin/compare/devstride--v3.10.0...HEAD
+[unreleased]: https://github.com/devstride/claude-plugin/compare/devstride--v3.11.0...HEAD
+[3.11.0]: https://github.com/devstride/claude-plugin/compare/devstride--v3.10.0...devstride--v3.11.0
 [3.10.0]: https://github.com/devstride/claude-plugin/compare/devstride--v3.9.0...devstride--v3.10.0
 [3.9.0]: https://github.com/devstride/claude-plugin/compare/devstride--v3.8.0...devstride--v3.9.0
 [3.8.0]: https://github.com/devstride/claude-plugin/compare/devstride--v3.7.0...devstride--v3.8.0

@@ -1,12 +1,12 @@
 #!/bin/bash
-# ds-statusline: managed v3.1.1 — installed and kept up to date by the devstride
+# ds-statusline: managed v3.2.0 — installed and kept up to date by the devstride
 # plugin. DELETE THIS LINE to take ownership: the session-start hook only ever
 # replaces a file that still carries it, and never touches one that does not.
 #
 # Claude Code status line for a repository running the DevStride delivery loop.
 #
 #   Model: Opus 5 · Effort: high · Repo: acme · Checkout: ⑂ i123-widget ·
-#   Branch: phil/08-28-26/widget · Stage: phil-mac · PR: #412 draft
+#   Branch: phil/08-28-26/widget · Stage: phil-mac · PR: #412 draft · Release: release/26-10-17 · alice · ci
 #
 # `setup` copies this into the consuming repository as `.claude/statusline.sh`
 # and points `statusLine.command` at it. It is deliberately repo-AGNOSTIC: every
@@ -21,7 +21,7 @@
 # people looking for a break that is not there. `statusLine.hiddenSegments` in
 # ds-config.json suppresses a segment that DOES resolve but is not wanted.
 #
-# Requires python3 (the plugin already does) and, for the PR segment, gh.
+# Requires python3 (the plugin already does) and, for the PR and Release segments, gh.
 
 input=$(cat)
 
@@ -73,6 +73,40 @@ emit("SL_PROD_STAGES", " ".join(stage.get("productionStages") or []))
 # already dropped; this is for one that WOULD render and is not wanted.
 sl = cfg.get("statusLine") or {}
 emit("SL_HIDDEN", " ".join(str(x) for x in (sl.get("hiddenSegments") or [])))
+
+# Release clearance (release.clearance): the command whose `status --short` names the
+# release in flight, or nothing when the block is null. A repo-supplied provider is its
+# own `commands.status`; the built-in one is the clearance-github.sh the plugin ships, found
+# through $DEVSTRIDE_CLEARANCE_PROVIDER, the loaded plugin ($CLAUDE_PLUGIN_ROOT), or the
+# installed copy recorded in the Claude Code plugin registry (a status line runs outside
+# any skill, so it cannot assume a plugin root). Nothing found → no segment, never an error.
+clearance_cmd = ""
+clearance = (cfg.get("release") or {}).get("clearance") or {}
+if isinstance(clearance, dict) and clearance:
+    commands = clearance.get("commands") or {}
+    if isinstance(commands, dict) and commands.get("status"):
+        clearance_cmd = str(commands["status"]) + " --short"
+    elif clearance.get("provider") == "github":
+        rel = "skills/release/scripts/clearance-github.sh"
+        candidates = [os.environ.get("DEVSTRIDE_CLEARANCE_PROVIDER") or ""]
+        if os.environ.get("CLAUDE_PLUGIN_ROOT"):
+            candidates.append(os.path.join(os.environ["CLAUDE_PLUGIN_ROOT"], rel))
+        try:
+            registry = os.path.join(os.environ.get("CLAUDE_CONFIG_DIR") or os.path.expanduser("~/.claude"),
+                                    "plugins", "installed_plugins.json")
+            with open(registry) as fh:
+                rows = (json.load(fh).get("plugins") or {})
+            for key in ("devstride@devstride", "ds@devstride"):
+                for row in rows.get(key) or []:
+                    if row.get("installPath"):
+                        candidates.append(os.path.join(row["installPath"], rel))
+        except Exception:
+            pass
+        for candidate in candidates:
+            if candidate and os.path.isfile(candidate):
+                clearance_cmd = "bash " + shlex.quote(candidate) + " status --short"
+                break
+emit("SL_CLEARANCE_CMD", clearance_cmd)
 ' 2>/dev/null
 )"
 
@@ -269,6 +303,35 @@ if [ -n "$pr" ]; then
   body="${c}${link}${RESET}"
   [ -n "$state" ] && body="${c}${link} ${state}${RESET}"
   seg pr "PR" "$num" "$body"
+fi
+
+# --- release clearance (cached, refreshed in the background) ----------------
+# The release in flight for this repository, from the clearance provider's
+# `status --short` (release.clearance): one line such as
+# `release/26-10-17 · alice · ci`, or nothing when no release holds clearance.
+# Network, so the same cache-and-refresh shape as the PR segment; a provider
+# that fails prints nothing, and nothing renders — never an error in the bar.
+if [ -n "$SL_CLEARANCE_CMD" ]; then
+  rkey=$(printf '%s' "$toplevel" | (md5 -q 2>/dev/null || shasum | cut -d' ' -f1))
+  rcache="${TMPDIR:-/tmp}/ds-statusline-release-$rkey"
+  rrefresh() {
+    (cd "$toplevel" && eval "$SL_CLEARANCE_CMD") 2>/dev/null | head -1 >"$rcache.tmp"
+    mv -f "$rcache.tmp" "$rcache" 2>/dev/null
+  }
+  rspawn() { touch "$rcache" 2>/dev/null; (rrefresh &) >/dev/null 2>&1; }
+  rel=""
+  if [ -f "$rcache" ]; then
+    rage=$(( $(date +%s) - $(stat -f %m "$rcache" 2>/dev/null || stat -c %Y "$rcache" 2>/dev/null || echo 0) ))
+    rel=$(cat "$rcache" 2>/dev/null)
+    [ "$rage" -ge "$ttl" ] && rspawn
+  else
+    : >"$rcache"; rspawn
+  fi
+  if [ -n "$rel" ]; then
+    # A stale clearance is the one worth noticing: its session may be gone.
+    case "$rel" in *STALE*) rc=$RED ;; *) rc=$MAGENTA ;; esac
+    seg release "Release" "$rel" "${rc}${rel}${RESET}"
+  fi
 fi
 
 printf '%s' "$out"

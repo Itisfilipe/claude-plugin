@@ -144,4 +144,41 @@ if ! grep -q '\[90m' "$SL" && ! printf '%s' "$RAW" | grep -q $'\033\[90m'; then
   ok "(15) no segment uses ANSI bright black, which some themes render invisible"
 else bad "(15) ANSI bright black (90) is back in the status line"; fi
 
+# (16) the Release segment: a clearance provider's `status --short` line, served from the
+#      cache like the PR segment; a stale clearance keeps its STALE marker; a null
+#      release.clearance renders no Release label even with a cache file present
+RL="$(mkrepo released '{"release":{"clearance":{"commands":{"status":"echo release/26-10-17 · alice · ci"}}}}')"
+RTOP=$(git -C "$RL" rev-parse --show-toplevel)
+rkey=$(printf '%s' "$RTOP" | (md5 -q 2>/dev/null || shasum | cut -d' ' -f1))
+printf 'release/26-10-17 · alice · ci' > "$TMPDIR/ds-statusline-release-$rkey"
+O="$(render "$RL")"
+printf 'release/26-10-17 · alice · review · STALE' > "$TMPDIR/ds-statusline-release-$rkey"
+O2="$(render "$RL")"
+NL="$(mkrepo unreleased '{"release":{"clearance":null}}')"
+nkey=$(printf '%s' "$(git -C "$NL" rev-parse --show-toplevel)" | (md5 -q 2>/dev/null || shasum | cut -d' ' -f1))
+printf 'release/26-10-17 · alice · ci' > "$TMPDIR/ds-statusline-release-$nkey"
+O3="$(render "$NL")"
+if printf '%s' "$O" | grep -q 'Release: release/26-10-17 · alice · ci$' && printf '%s' "$O2" | grep -q 'Release: release/26-10-17 · alice · review · STALE$' \
+   && ! printf '%s' "$O3" | grep -q 'Release:' && no_dangling "$O3"; then
+  ok "(16) Release segment from the provider's short line; STALE kept; null clearance → no Release label"
+else bad "(16) got: $O | $O2 | $O3"; fi
+
+# (17) the built-in provider is found through DEVSTRIDE_CLEARANCE_PROVIDER and refreshed in the
+#      background: an empty cache renders nothing, and the next render shows the line
+GH="$(mkrepo ghclear '{"release":{"clearance":{"provider":"github"}}}')"
+printf '#!/bin/bash\n[ "$1 $2" = "status --short" ] && echo "release/26-10-18 · bob · pr"\n' > "$WORK/fake-provider.sh"
+O="$(DEVSTRIDE_CLEARANCE_PROVIDER="$WORK/fake-provider.sh" render "$GH")"
+gkey=$(printf '%s' "$(git -C "$GH" rev-parse --show-toplevel)" | (md5 -q 2>/dev/null || shasum | cut -d' ' -f1))
+for _ in 1 2 3 4 5 6 7 8 9 10; do [ -s "$TMPDIR/ds-statusline-release-$gkey" ] && break; sleep 0.3; done
+O2="$(DEVSTRIDE_CLEARANCE_PROVIDER="$WORK/fake-provider.sh" render "$GH")"
+if ! printf '%s' "$O" | grep -q 'Release:' && no_dangling "$O" && printf '%s' "$O2" | grep -q 'Release: release/26-10-18 · bob · pr$'; then
+  ok "(17) provider github → resolved via DEVSTRIDE_CLEARANCE_PROVIDER, refreshed out of band, shown on the next render"
+else bad "(17) got: $O | $O2"; fi
+
+# (18) provider github with no provider anywhere → no segment, no error, nothing dangling
+O="$(DEVSTRIDE_CLEARANCE_PROVIDER=/nonexistent CLAUDE_PLUGIN_ROOT=/nonexistent CLAUDE_CONFIG_DIR="$WORK/noclaude" render "$(mkrepo noprov '{"release":{"clearance":{"provider":"github"}}}')")"
+if ! printf '%s' "$O" | grep -q 'Release:' && no_dangling "$O" && [ -n "$O" ]; then
+  ok "(18) provider github with no installed provider → the segment is simply absent"
+else bad "(18) got: $O"; fi
+
 exit $FAIL

@@ -326,6 +326,20 @@ loaded once per top-level run so composed skills do not repeatedly spend context
 >
 > The block above stays useful either way, as a minimal working file to start from.
 
+### Release clearance: one release at a time across machines
+
+When releases are cut from more than one machine, or by more than one person or agent, set
+`"release": { "clearance": { "provider": "github" } }`. The release skill then claims clearance
+before it touches the support train or cuts a release branch, waits and tells you who holds it
+when another session is releasing, keeps a heartbeat so a crashed session cannot hold the runway
+forever, can adopt a release a dead session left half-done (with your yes), and hands clearance back
+as the last act of its close-out. The clearance is a custom git ref in your repository, created
+atomically with nothing but `gh`; the status line shows the release in flight. A hotfix is never
+held. For a hard floor, `/devstride:setup ci` offers a `release-tower` GitHub check that passes only
+a hotfix or the oldest open release pull request — make it required on your production branch and
+even an administrator cannot land a second release beside the first. Details: the release skill's
+`references/clearance.md`.
+
 ## Choose a delivery profile
 
 One word sets how much rigor the loop spends per unit of work — how finely a plan is sliced, how
@@ -426,7 +440,7 @@ Skills are namespaced by the plugin, so they invoke as `/devstride:<name>`.
 | `push` | Stages, commits, type-checks, and pushes following the repo's commit conventions |
 | `branch-feature` / `branch-hotfix` | Cuts a working branch from the development or production branch |
 | `create-story` / `create-defect` | Creates a one-off item outside any plan and delivers it end to end; `create-defect deferred <item>` files a deferred defect beside the plan instead |
-| `release` | Promotes the release branch to production with a full gated review; updates docs through your local docs skill by default, and writes release notes only on `--release-notes`, after the deploy is confirmed |
+| `release` | Promotes the release branch to production with a full gated review; with `release.clearance` set, claims one-release-at-a-time clearance first and hands it back last; updates docs through your local docs skill by default, and writes release notes only on `--release-notes`, after the deploy is confirmed |
 | `setup` | Inspects your repo, maps your work types onto the loop's roles, writes `.claude/ds-config.json`, then proves it by running it — including that the configured local review engine actually runs read-only |
 | `doctor` | Checks git, `gh`, the plugin, DevStride, config, CI gates, docs and personal status-line settings; after the shared replacement is committed and verified, it can separately remove only the personal `statusLine` key you approve while preserving every other setting and script |
 | `update` | Updates the exact loaded copy, verifies its official tag and files, then stops for a checked plugin reload (restart is the fallback) |
@@ -455,7 +469,7 @@ jq -n --slurpfile c .claude/ds-config.json '{config: $c[0], heads: ["develop"], 
 under a committed token budget, with rationale moved to per-skill references loaded only at
 the step that needs them; the full before/after table is in the CHANGELOG.
 
-Current version: **3.10.0** — see [CHANGELOG.md](CHANGELOG.md) for what changed, and
+Current version: **3.11.0** — see [CHANGELOG.md](CHANGELOG.md) for what changed, and
 [RELEASING.md](RELEASING.md) for how releases are cut.
 
 **Getting a new release.** Claude's marketplace auto-update is off by default for a manually added
