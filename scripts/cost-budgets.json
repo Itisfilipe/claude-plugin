@@ -19,11 +19,11 @@
     "pr": 3800,
     "push": 1100,
     "rationalize-gantt": 2700,
-    "rebalance": 5800,
+    "rebalance": 5900,
     "release": 7800,
     "review": 8000,
     "setup": 10700,
-    "ultracode-build": 4800,
+    "ultracode-build": 4900,
     "update": 1000
   },
   "references": {
