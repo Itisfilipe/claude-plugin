@@ -14,7 +14,7 @@ walk the whole plan from its first root story.
 
 Argument — a parent item number to plan under (e.g. `I20100`), optionally a short description of
 what is being planned, and optionally one **delivery profile** — the bare word `prototype`,
-`standard`, `extended` or `enterprise` anywhere in the arguments (`/devstride:plan I20100 prototype`;
+`standard` or `extended` anywhere in the arguments (`/devstride:plan I20100 prototype`;
 step 0 resolves it, and it shapes leaf grain and spec depth per
 `${CLAUDE_PLUGIN_ROOT}/skills/plan/references/delivery-profiles.md`); empty → ask which parent item
 to plan under: $ARGUMENTS
@@ -139,8 +139,8 @@ consequence per bullet. Ask as many rounds as the ambiguity needs. Cover at mini
 - **Leaf titles per release unit** (this org: Stories) — titles only, no specs yet. Grain is **the
   resolved profile's `grain` row, read now and quoted** when proposing, never a remembered size;
   the row also settles foundation placement (`prototype`/`extended` fold foundation work —
-  scaffold, CI, schema, harness — into the story that needs it; `standard`/`enterprise` let or
-  make it stand alone — the row wins over any sentence here). Flag foundation stories (under `prototype`: "goes first inside its slice")
+  scaffold, CI, schema, harness — into the story that needs it; `standard` lets it stand
+  alone — the row wins over any sentence here). Flag foundation stories (under `prototype`: "goes first inside its slice")
   and mark gate stories (release-blocking checks, leak guards) for step 5. Grain changes; dating
   does not — step 6 still dates every leaf one synthetic day apart, because dates show dependency
   depth, not effort.

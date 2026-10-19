@@ -78,7 +78,7 @@ The cap bounds every branch: **0** (`prototype`) — no Workflow for ANY story, 
 (substantive means more files, not readers); **≤ 2** (`standard`) — readers only for angles the
 spec or refresh does not pin, none for a fully pinned spec; **≤ 4** (`extended`) — as standard,
 plus the cross-contract angles a subsystem-sized story touches beyond its spec; **up to six**
-(`enterprise`). Announce the count provisioned against the cap.
+(override). Announce the count provisioned against the cap.
 
 Route mechanical inventories to `haiku`/`low`, routine contract or test-plan reading to
 `sonnet`/`medium`, cross-file synthesis to `sonnet`/`high`; one `opus`/`high` critic only when an
@@ -162,7 +162,7 @@ the missing caller context — never guess that a full review happened.
   (`prototype`) — P1 correctness and any security finding, the rest routed by the next
   bullet; **`likely-important`** (`standard`, `extended`) — findings both likely and material (a
   security finding is material by definition), the rest dismissed with a one-line rationale;
-  **`all-confirmed`** (`enterprise`) — **fix every CONFIRMED and PLAUSIBLE.**
+  **`all-confirmed`** (override) — **fix every CONFIRMED and PLAUSIBLE.**
 - **Nothing is silently dropped**: an unfixed finding worth filing (a P1, a security finding, or
   one both likely and material) is DEFERRED — with a home (a tracked downstream item or this
   story's intentional seam: rationale + owning item) or, with no home, on the **untracked-deferral

@@ -38,7 +38,7 @@
     "skills/doctor/references/repairs.md": 2700,
     "skills/doctor/references/silent-failures.md": 3300,
     "skills/doctor/references/version-currency.md": 2000,
-    "skills/plan/references/delivery-profiles.md": 4800,
+    "skills/plan/references/delivery-profiles.md": 5100,
     "skills/plan/references/execution-order-numbering.md": 1100,
     "skills/plan/references/release-unit-shaping.md": 1600,
     "skills/plan/references/splice-mechanics.md": 3100,
@@ -54,7 +54,7 @@
     "skills/release/references/release-branch.md": 4400,
     "skills/release/references/release-gates.md": 1300,
     "skills/review/references/ci-settle.md": 1800,
-    "skills/review/references/delivery-loop-invariants.md": 21400,
+    "skills/review/references/delivery-loop-invariants.md": 21500,
     "skills/review/references/delta-re-review.md": 2000,
     "skills/review/references/final-head-request.md": 900,
     "skills/review/references/github-review-api.md": 4700,
@@ -79,7 +79,7 @@
   },
   "paths": {
     "epicReleaseGate": {
-      "budget": 69500,
+      "budget": 69900,
       "files": [
         "skills/build-item/SKILL.md",
         "skills/build-item/references/epic-release.md",
@@ -109,7 +109,7 @@
       ]
     },
     "fastStoryLoop": {
-      "budget": 58000,
+      "budget": 58400,
       "files": [
         "skills/build-item/SKILL.md",
         "skills/build-item/references/next-unblocked.md",
@@ -143,7 +143,7 @@
       ]
     },
     "productionReleaseGate": {
-      "budget": 63600,
+      "budget": 64000,
       "files": [
         "skills/release/SKILL.md",
         "skills/build-item/references/plain-language-output.md",

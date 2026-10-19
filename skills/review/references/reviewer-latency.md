@@ -4,7 +4,7 @@ load: contract
 # The adaptive reviewer wait — how the bound is learned, and why
 
 `review` step 2 waits for the cloud reviewers it registered. Before this, the wait was one
-fixed bound — `review.pollTimeoutMinutes`, 20 minutes under `enterprise` — polled every ~30 s.
+fixed bound — `review.pollTimeoutMinutes`, 20 minutes under the retired `enterprise` — polled every ~30 s.
 A reviewer that answers in three minutes was fine; a reviewer that never answers cost the whole
 bound, about 17 minutes of idle and ≈ 40 API calls. `skills/review/scripts/wait-for-reviewers.sh`
 replaces that with a bound learned **per reviewer, on this machine**, a backoff, and an exit on

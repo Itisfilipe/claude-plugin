@@ -8,6 +8,31 @@ for what each version component means here and how a release is cut.
 
 ## [Unreleased]
 
+## [3.12.0] — 2026-10-19
+
+### Changed — BREAKING: the `enterprise` delivery profile is retired
+
+- **Three profiles, not four**: `prototype`, `standard` and `extended`. The `enterprise` column is
+  gone from the contract (`skills/plan/references/delivery-profiles.md`) and from `setup`'s
+  defaults table. Its grain (one loop-hour stories, foundation work standing alone) cut work into
+  pieces so small that review and merge ceremony cost more than the error exposure they removed —
+  one program produced 70 stories where 28 sufficed — and every one of its rigor knobs is
+  expressible as an override: `profileOverrides` with `fixFloor: "all-confirmed"`,
+  `storyVerify: "full"`, `maxLocalReviewRounds: 2`, `understandReaders: 6`, plus
+  `review.pollTimeoutMinutes: 20`. The contract documents that recipe, and `fixFloor`,
+  `storyVerify` and `understandReaders` are now named override keys.
+- **A `profile` of `enterprise` — in config or in a plan root's `Delivery profile:` marker — is an
+  UNKNOWN profile.** Every skill that resolves a profile (`plan`, `rebalance`, `build-item`,
+  `ultracode-build`, `review`, `setup`, `doctor`) falls back to `standard` and says so in its
+  orientation line, with the override recipe, never silently. `rebalance <root> extended` (or
+  `standard`) rewrites a marker.
+- Grain order is now `standard` < `prototype` < `extended`; `setup` offers three choices; `doctor`
+  names three.
+
+### Cost
+
+(generated at release)
+
 ## [3.11.0] — 2026-10-18
 
 ### Added
@@ -1913,6 +1938,7 @@ holes found while fixing them.
   Installed an empty plugin — no skills yet.
 
 [unreleased]: https://github.com/devstride/claude-plugin/compare/devstride--v3.11.0...HEAD
+[3.12.0]: https://github.com/devstride/claude-plugin/compare/devstride--v3.11.0...devstride--v3.12.0
 [3.11.0]: https://github.com/devstride/claude-plugin/compare/devstride--v3.10.0...devstride--v3.11.0
 [3.10.0]: https://github.com/devstride/claude-plugin/compare/devstride--v3.9.0...devstride--v3.10.0
 [3.9.0]: https://github.com/devstride/claude-plugin/compare/devstride--v3.8.0...devstride--v3.9.0

@@ -282,10 +282,10 @@ never re-applied.
 
 Four things no inspection can reach, asked every run — the first one first:
 
-- **Which delivery profile?** (`profile`) — four options from the contract's table
+- **Which delivery profile?** (`profile`) — three options from the contract's table
   (`${CLAUDE_PLUGIN_ROOT}/skills/plan/references/delivery-profiles.md` — read it before
-  asking): `prototype`, `standard` (default, first), `extended` (fewer, larger stories;
-  every safety knob `standard`'s), `enterprise`; say what the answer moves
+  asking): `prototype`, `standard` (default, first), `extended` (fewer, larger stories,
+  safety knobs `standard`'s; `enterprise` → `standard`); say what the answer moves
   (`epicIntegrationBranches.autoRelease`, `fastStoryMerges.enabled`,
   `review.pollTimeoutMinutes`); a re-run prefills the file's `profile`. **If
   `prototype`, say the consequence now**: `autoRelease` becomes `true` — a release unit merges
@@ -347,7 +347,7 @@ Phase D; else the shipped default.
 **The roster must describe what actually exists.** No
 local CLI detected → **omit `localCommand`** (or `null`). No cloud reviewer →
 **`automatedReviewers: []`**. **`fastStoryMerges.enabled`, precondition by profile**:
-`standard`/`extended`/`enterprise` → `true` with `verify.test` and `verify.typecheck` set; `prototype` →
+`standard`/`extended` → `true` with `verify.test` and `verify.typecheck` set; `prototype` →
 `true` whenever `verify.typecheck` is set (exact rule: the
 defaults reference — apply, never re-derive); unmet → `false`, saying which part
 was missing and, under `prototype`, that the file now contradicts its profile. **`autoRelease`

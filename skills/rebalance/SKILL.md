@@ -10,14 +10,15 @@ with every existing spec carried into its successor, the dependency chain intact
 shipped or in flight touched. Nothing is deleted. Building the re-sliced stories is
 `/devstride:build-item`'s job afterwards.
 
-The profile — what `grain` and `specDepth` mean for each of `prototype` / `standard` / `extended` /
-`enterprise`, the resolution order, and the root marker this skill rewrites — is defined ONCE, in
+The profile — what `grain` and `specDepth` mean for each of `prototype` / `standard` / `extended`,
+the resolution order, and the root marker this skill rewrites — is defined ONCE, in
 `${CLAUDE_PLUGIN_ROOT}/skills/plan/references/delivery-profiles.md`. Read it first and apply it by
 citation; never restate its table.
 
 Arguments — a grouping item to re-slice (a whole plan root, or one release unit — this org's Epic —
 to scope the re-slice to it; e.g. `I20100`) and the target profile as a bare word anywhere in the
-arguments (`prototype`, `standard`, `extended` or `enterprise` — the contract's argument form),
+arguments (`prototype`, `standard` or `extended` — the contract's argument form; the retired
+`enterprise` is an unknown profile, which the contract says how to announce),
 optionally with `--dry-run`; this skill REQUIRES both, so missing either → ask, never guess:
 $ARGUMENTS
 
@@ -92,7 +93,8 @@ $ARGUMENTS
   closest ancestor's (walk `hierarchy` up with `get_item(view:"full")`), else config `profile`,
   else `standard`. On a whole-root run check every release unit for its OWN marker (it wins for its
   subtree; direction is decided per unit). **Announce both ends with sources** ("current:
-  enterprise — from the root marker on I20100; target: extended — from `$ARGUMENTS`"). Current
+  enterprise (retired: read as standard) — from the root marker on I20100; target: extended — from
+  `$ARGUMENTS`"). Current
   equals target everywhere → say so and ask whether to proceed (a wrong-grain plan is a valid
   reason, but the owner's call).
 - **Target knobs** — `profileOverrides` in the repo's `.claude/ds-config.json` (contract,

@@ -369,10 +369,11 @@ M16. A story merged onto its release unit's integration branch is LANDED, not Do
      step 6's.
 
 ## N. Delivery profiles (contract: `skills/plan/references/delivery-profiles.md`)
-N1. ONE profile word — `prototype` / `standard` / `extended` / `enterprise` — moves every rigor knob
-    together; the knobs are coupled (coarse stories under enterprise's fix-every-finding floor and
-    extra rounds is the worst combination — `extended` pairs its coarse grain with standard's), so
-    no skill exposes them as independent primary settings.
+N1. ONE profile word — `prototype` / `standard` / `extended` — moves every rigor knob together; the
+    knobs are coupled (coarse stories under a fix-every-finding floor and extra rounds is the worst
+    combination — `extended` pairs its coarse grain with standard's), so no skill exposes them as
+    independent primary settings. The retired `enterprise` (3.12.0) is an UNKNOWN profile: read as
+    `standard`, announced with the override recipe, never silently.
 N2. Resolution order, every skill, first match wins, ANNOUNCED with its source: bare word in the
     arguments → the plan root's `Delivery profile:` marker → `profile` in config → `standard`.
 N3. The marker is read with `get_item(view: 'full')` — the summary projection omits `description`,
