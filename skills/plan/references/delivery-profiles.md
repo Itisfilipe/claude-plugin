@@ -14,36 +14,58 @@ extra rounds) draw dozens of findings per diff and run longer than finer stories
 stories under a prototype review are merely wasteful. So the user picks **one word** and the knobs
 move together; single knobs can still be tuned (see [Overrides](#overrides)).
 
-## The four profiles
+## The three profiles
 
-| Knob | `prototype` | `standard` (default) | `extended` | `enterprise` |
-|---|---|---|---|---|
-| **Who it is for** | A small team validating an idea; no production users yet; small errors are cheap | The default for a working product | A working product built as fewer, larger stories | Regulated, revenue-bearing, or shared-platform code where a missed defect is expensive |
-| `grain` — leaf sizing | **One story per vertical slice a user can see or use.** Scaffold, CI, schema and harness work is folded into the first slice that needs it, never its own story | Roughly 1–2 loop-hours: one contract or one subsystem change with its tests | **Roughly one release-unit-day**: a full subsystem or workflow with its own tests, sized so a build agent runs unattended for hours; foundation work sits inside the story that needs it | Roughly one loop-hour; foundation work (schema, harness, CI) stands as its own story |
-| `specDepth` — leaf description | Goal, acceptance criteria, the files it touches, Definition of Done. **Cap ~1,500 characters** | The full leaf template (`plan` step 3, Stage C). **Cap ~5,000 characters** | The full leaf template, uncapped | The full leaf template, uncapped |
-| `understandReaders` — `ultracode-build` phase 1 fan-out | **0** — read the relevant files inline, no Workflow | **≤ 2** readers, only for angles the spec does not pin | **≤ 4** — a subsystem story crosses more contracts than its spec pins; under six, as the uncapped spec pins more | Up to the six the skill defines |
-| `reviewBreadthCeiling` — generic finder breadth at a merge gate | **NARROW** | **CONTAINED** | HIGH-RISK when the diff warrants it — a multi-hour, multi-module diff clamped at CONTAINED would get a standard story's finders | HIGH-RISK when the diff warrants it |
-| `verificationDefault` | REFUTED unless reproducible | REFUTED unless reproducible | Same as standard | REFUTED unless reproducible |
-| `verificationGrouping` — how HIGH-RISK verification fans out | `per-file` | `per-file` | Same as standard | `per-file` |
-| `fixFloor` — additional profile floor after the universal P1/serious-P2 floor | **`p1-security`**: P1 correctness and any security finding; the rest is dismissed with a one-line rationale | **`likely-important`**: findings that are both likely to occur and material if they do. The rest is dismissed with a rationale | Same as standard | **`all-confirmed`**: every CONFIRMED and PLAUSIBLE finding |
-| `localCliEngine` — where a configured local CLI reviewer runs | Every direct-PR or release-PR merge boundary; never a fast story with no PR | Same | Same | Same |
-| `maxLocalReviewRounds` — local-engine target inside the normal cycle target | **1** | **1** | **1** | **2** |
-| `targetAdversarialCycles` — fixed, non-overrideable target across every reviewer/recheck | **2** | **2** | **2** | **2** |
-| `storyVerify` — the local gate before a story merges | Type-checks + touched suites (`verify.testSingle`, widened when broad); full `verify.test` at release PR | Same; full `verify.test` at release PR | Same as standard | Type-checks + full `verify.test` + `verify.lint` where applicable |
-| `perStoryPullRequest` | Fast mode — no per-story PR — whenever `fastStoryMerges.enabled` is absent or `true`; the story risk check and green gate qualify its integration-branch merge, and the release-PR review holds the batch from the base branch. A present `false` wins and is reported | Per `fastStoryMerges.enabled` | Same as standard | Per `fastStoryMerges.enabled` |
-| `fastStoryMerges.enabled` (default written by `setup`) | **true** whenever `verify.typecheck` is set | `true` when `verify.test` and `verify.typecheck` are set; else `false`, saying which precondition was missing | Same as standard | Same rule as `standard` |
-| `releaseCiOrdering` | Review first; CI starts only on the final review-settled release-PR SHA when the repo supports the draft hold | Same | Same | Same |
-| `autoRelease` (default written by `setup`) | **true** — the release unit merges to the base branch when its last leaf lands. `setup` says this out loud when it writes it: on a repo whose base branch is effectively production, the owner must know | false | false | false |
-| `reviewerRegistrationWindowMinutes` — how long to wait for proof that a cloud reviewer was actually asked | 2 | 2 | 2 | 2 |
-| `pollTimeoutMinutes` — bound on waiting for a REGISTERED cloud reviewer's review (default written by `setup`) — the UPPER bound of the adaptive wait; see `review` step 2 | 5 | 10 | 10 | 20 |
+| Knob | `prototype` | `standard` (default) | `extended` |
+|---|---|---|---|
+| **Who it is for** | A small team validating an idea; no production users yet; small errors are cheap | The default for a working product | A working product built as fewer, larger stories |
+| `grain` — leaf sizing | **One story per vertical slice a user can see or use.** Scaffold, CI, schema and harness work is folded into the first slice that needs it, never its own story | Roughly 1–2 loop-hours: one contract or one subsystem change with its tests | **Roughly one release-unit-day**: a full subsystem or workflow with its own tests, sized so a build agent runs unattended for hours; foundation work sits inside the story that needs it |
+| `specDepth` — leaf description | Goal, acceptance criteria, the files it touches, Definition of Done. **Cap ~1,500 characters** | The full leaf template (`plan` step 3, Stage C). **Cap ~5,000 characters** | The full leaf template, uncapped |
+| `understandReaders` — `ultracode-build` phase 1 fan-out | **0** — read the relevant files inline, no Workflow | **≤ 2** readers, only for angles the spec does not pin | **≤ 4** — a subsystem story crosses more contracts than its spec pins; under six, as the uncapped spec pins more |
+| `reviewBreadthCeiling` — generic finder breadth at a merge gate | **NARROW** | **CONTAINED** | HIGH-RISK when the diff warrants it — a multi-hour, multi-module diff clamped at CONTAINED would get a standard story's finders |
+| `verificationDefault` | REFUTED unless reproducible | REFUTED unless reproducible | Same as standard |
+| `verificationGrouping` — how HIGH-RISK verification fans out | `per-file` | `per-file` | Same as standard |
+| `fixFloor` — additional profile floor after the universal P1/serious-P2 floor | **`p1-security`**: P1 correctness and any security finding; the rest is dismissed with a one-line rationale | **`likely-important`**: findings that are both likely to occur and material if they do. The rest is dismissed with a rationale | Same as standard |
+| `localCliEngine` — where a configured local CLI reviewer runs | Every direct-PR or release-PR merge boundary; never a fast story with no PR | Same | Same |
+| `maxLocalReviewRounds` — local-engine target inside the normal cycle target | **1** | **1** | **1** |
+| `targetAdversarialCycles` — fixed, non-overrideable target across every reviewer/recheck | **2** | **2** | **2** |
+| `storyVerify` — the local gate before a story merges | Type-checks + touched suites (`verify.testSingle`, widened when broad); full `verify.test` at release PR | Same; full `verify.test` at release PR | Same as standard |
+| `perStoryPullRequest` | Fast mode — no per-story PR — whenever `fastStoryMerges.enabled` is absent or `true`; the story risk check and green gate qualify its integration-branch merge, and the release-PR review holds the batch from the base branch. A present `false` wins and is reported | Per `fastStoryMerges.enabled` | Same as standard |
+| `fastStoryMerges.enabled` (default written by `setup`) | **true** whenever `verify.typecheck` is set | `true` when `verify.test` and `verify.typecheck` are set; else `false`, saying which precondition was missing | Same as standard |
+| `releaseCiOrdering` | Review first; CI starts only on the final review-settled release-PR SHA when the repo supports the draft hold | Same | Same |
+| `autoRelease` (default written by `setup`) | **true** — the release unit merges to the base branch when its last leaf lands. `setup` says this out loud when it writes it: on a repo whose base branch is effectively production, the owner must know | false | false |
+| `reviewerRegistrationWindowMinutes` — how long to wait for proof that a cloud reviewer was actually asked | 2 | 2 | 2 |
+| `pollTimeoutMinutes` — bound on waiting for a REGISTERED cloud reviewer's review (default written by `setup`) — the UPPER bound of the adaptive wait; see `review` step 2 | 5 | 10 | 10 |
 
-Read `prototype` as "rails and guidance, fast"; `enterprise` as "high resolution, minimum exposure
-to error"; `standard` as the middle a working product wants. **`extended` buys size, not lower
+Read `prototype` as "rails and guidance, fast"; `standard` as the middle a working product wants. **`extended` buys size, not lower
 rigor**: only the size-shaped knobs (`grain`, `specDepth`, `understandReaders`,
 `reviewBreadthCeiling`) move coarser or wider; every safety-shaped knob (`fixFloor`, `storyVerify`,
 verification, review cycles, …) and every floor below is exactly `standard`'s.
 
-**Grain order** (`grain` row, finest → coarsest): `enterprise` < `standard` < `prototype` < `extended`.
+**Grain order** (`grain` row, finest → coarsest): `standard` < `prototype` < `extended`.
+
+## The retired `enterprise` profile (a breaking change in 3.12.0)
+
+`enterprise` — the finest grain (one loop-hour stories, foundation work standing alone), six
+readers, the `all-confirmed` fix floor, the full suite per story, two local rounds and a 20-minute
+reviewer wait — was retired on the owner's decision of 2026-10-17: its grain cut work into pieces
+so small that review and merge ceremony cost more than the error exposure they removed (one
+program produced 70 stories where 28 sufficed), and every one of its rigor knobs is expressible
+through `profileOverrides` on top of `standard` or `extended`. **A `profile` of `enterprise` — in
+config or in a root marker — is an UNKNOWN profile**: every skill that resolves a profile falls
+back to `standard` and SAYS SO in its orientation line, never silently, quoting this recipe:
+
+```json
+{ "profile": "extended",
+  "profileOverrides": { "fixFloor": "all-confirmed", "storyVerify": "full",
+                        "maxLocalReviewRounds": 2, "understandReaders": 6 },
+  "review": { "pollTimeoutMinutes": 20 } }
+```
+
+That reproduces each former `enterprise` knob except its grain, which the owner chose to drop;
+`rebalance <root> extended` (or `standard`) rewrites a plan root's marker. `storyVerify: "full"`
+is type-checks + the full `verify.test` + `verify.lint` where applicable; `understandReaders` is
+the fan-out cap (up to the six the skill defines).
 
 ## Floors — what no profile removes
 
@@ -86,7 +108,7 @@ Every delivery skill resolves the profile the same way, first match wins, and **
 result and its source** ("profile: prototype — from the plan root I20100"):
 
 1. An explicit profile in the invoking skill's `$ARGUMENTS` — the bare word `prototype`,
-   `standard`, `extended` or `enterprise` anywhere in the arguments (`/devstride:plan I20100
+   `standard` or `extended` anywhere in the arguments (`/devstride:plan I20100
    prototype`, `/devstride:rebalance I20100 extended`). `rebalance` requires one; `plan` and
    `build-item` accept one.
 2. The **root marker** on the resolved plan root — see below. A one-off item (no plan root) has
@@ -124,14 +146,15 @@ contract. It does not write, invoke MCP, satisfy the merge review, or run on rou
 ## The root marker
 
 The profile travels WITH the plan — planning is repo-agnostic (it reads only the DevStride MCP) and
-one repo can run a prototype and an enterprise plan side by side — as one line in the plan root's
+one repo can run a prototype and an extended plan side by side — as one line in the plan root's
 description:
 
 ```html
 <p><strong>Delivery profile:</strong> prototype</p>
 ```
 
-Read it with a case-insensitive match on `Delivery profile:` followed by one of the four names.
+Read it with a case-insensitive match on `Delivery profile:` followed by one of the three names;
+any other word there (the retired `enterprise` included) is the unknown-profile fallback above.
 `plan` writes it at the sign-off that closes its discovery loop; `rebalance` rewrites it. Any
 descendant container without its own marker inherits the root's; one WITH its own marker (rare — a
 deliberately stricter sub-tree) wins for its subtree. The marker is read with
@@ -153,8 +176,10 @@ no marker and silently falls through to the config default.
 ```
 
 Keys are the table's knob names; values its vocabulary — for the prose-valued `grain` and
-`specDepth`, another profile's NAME (`"specDepth": "enterprise"` = slice at the active profile,
-spec at enterprise depth). A dedicated config key (`autoRelease`, `fastStoryMerges.enabled`,
+`specDepth`, another profile's NAME (`"specDepth": "extended"` = slice at the active profile,
+spec at extended depth). The override keys `fixFloor` (`p1-security` | `likely-important` |
+`all-confirmed`), `storyVerify` (`touched` | `full`) and `understandReaders` (0–6) carry the
+retired `enterprise` profile's rigor, see above. A dedicated config key (`autoRelease`, `fastStoryMerges.enabled`,
 `pollTimeoutMinutes`) present beside an override wins — an override adjusts the profile's default,
 never an operator's explicit setting. `verificationGrouping` accepts `per-file` | `per-finding`
 (`per-finding` restores one verifier per finding at HIGH-RISK; this override IS the mechanism —

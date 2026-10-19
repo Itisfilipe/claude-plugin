@@ -1,0 +1,52 @@
+# Two guards for "every change to shipped files ships with a version bump" (RELEASING.md).
+#
+#   pull_request → main:  scripts/check-version-bump.sh fails the PR when skills/, hooks/ or
+#                         plugin.json changed without a higher version, a CHANGELOG heading and
+#                         a README line; the script tests and the load budgets run too.
+#   push → main:          creates and pushes the annotated tag devstride--v<version> when it
+#                         does not exist yet, so a merged bump is a release the update check can
+#                         see. `claude plugin tag --push` remains the manual equivalent.
+name: release-guard
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  check:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: Version bump accompanies shipped changes
+        run: bash scripts/check-version-bump.sh --base "origin/${{ github.base_ref }}" --head HEAD
+      - name: Shell syntax
+        run: for f in hooks/*.sh scripts/*.sh scripts/tests/*.sh skills/*/scripts/*.sh; do [ -f "$f" ] && bash -n "$f"; done
+      - name: Script tests
+        run: bash scripts/tests/run.sh
+      - name: Load budgets and reference load fields
+        run: bash scripts/measure-cost.sh --check
+  tag:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: Tag the merged version when it is not tagged yet
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          V="$(python3 -c 'import json; print(json.load(open(".claude-plugin/plugin.json"))["version"])')"
+          T="devstride--v$V"
+          if git rev-parse -q --verify "refs/tags/$T" >/dev/null; then
+            echo "$T already exists at $(git rev-parse --short "$T^{commit}"); nothing to do"; exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$T" -m "devstride v$V"
+          git push origin "refs/tags/$T"
+          echo "tagged $T at $(git rev-parse --short HEAD)"

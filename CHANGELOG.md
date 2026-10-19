@@ -8,6 +8,55 @@ for what each version component means here and how a release is cut.
 
 ## [Unreleased]
 
+## [3.12.0] — 2026-10-19
+
+### Changed — BREAKING: the `enterprise` delivery profile is retired
+
+- **Three profiles, not four**: `prototype`, `standard` and `extended`. The `enterprise` column is
+  gone from the contract (`skills/plan/references/delivery-profiles.md`) and from `setup`'s
+  defaults table. Its grain (one loop-hour stories, foundation work standing alone) cut work into
+  pieces so small that review and merge ceremony cost more than the error exposure they removed —
+  one program produced 70 stories where 28 sufficed — and every one of its rigor knobs is
+  expressible as an override: `profileOverrides` with `fixFloor: "all-confirmed"`,
+  `storyVerify: "full"`, `maxLocalReviewRounds: 2`, `understandReaders: 6`, plus
+  `review.pollTimeoutMinutes: 20`. The contract documents that recipe, and `fixFloor`,
+  `storyVerify` and `understandReaders` are now named override keys.
+- **A `profile` of `enterprise` — in config or in a plan root's `Delivery profile:` marker — is an
+  UNKNOWN profile.** Every skill that resolves a profile (`plan`, `rebalance`, `build-item`,
+  `ultracode-build`, `review`, `setup`, `doctor`) falls back to `standard` and says so in its
+  orientation line, with the override recipe, never silently. `rebalance <root> extended` (or
+  `standard`) rewrites a marker.
+- Grain order is now `standard` < `prototype` < `extended`; `setup` offers three choices; `doctor`
+  names three.
+
+### Cost
+
+<!-- scripts/measure-cost.sh --table --since devstride--v3.11.0 @ 1003a40, method: tokens = ceil(utf8_bytes / 3); bytes as `wc -c` -->
+| File | bytes@devstride--v3.11.0 | tokens@devstride--v3.11.0 | bytes now | tokens now | Δ tokens | budget |
+|---|---:|---:|---:|---:|---:|---:|
+| skills/setup/SKILL.md | 32,098 | 10,700 | 32,096 | 10,699 | -1 | 10,700 |
+| skills/build-item/SKILL.md | 23,979 | 7,993 | 23,999 | 8,000 | +7 | 8,000 |
+| skills/doctor/SKILL.md | 23,990 | 7,997 | 23,987 | 7,996 | -1 | 8,000 |
+| skills/review/SKILL.md | 23,900 | 7,967 | 23,900 | 7,967 | +0 | 8,000 |
+| skills/plan/SKILL.md | 23,922 | 7,974 | 23,888 | 7,963 | -11 | 8,000 |
+| skills/release/SKILL.md | 23,332 | 7,778 | 23,332 | 7,778 | +0 | 7,800 |
+| skills/rebalance/SKILL.md | 17,218 | 5,740 | 17,406 | 5,802 | +62 | 5,900 |
+| skills/ultracode-build/SKILL.md | 14,398 | 4,800 | 14,470 | 4,824 | +24 | 4,900 |
+| skills/pr/SKILL.md | 11,289 | 3,763 | 11,289 | 3,763 | +0 | 3,800 |
+| skills/rationalize-gantt/SKILL.md | 7,936 | 2,646 | 7,936 | 2,646 | +0 | 2,700 |
+| skills/ci-audit/SKILL.md | 7,570 | 2,524 | 7,570 | 2,524 | +0 | 2,600 |
+| skills/create-defect/SKILL.md | 7,481 | 2,494 | 7,481 | 2,494 | +0 | 2,500 |
+| skills/branch-hotfix/SKILL.md | 6,321 | 2,107 | 6,321 | 2,107 | +0 | 2,200 |
+| skills/insert-defect/SKILL.md | 4,714 | 1,572 | 4,714 | 1,572 | +0 | 1,600 |
+| skills/comprehend-plan/SKILL.md | 4,575 | 1,525 | 4,575 | 1,525 | +0 | 1,600 |
+| skills/insert-story/SKILL.md | 4,037 | 1,346 | 4,037 | 1,346 | +0 | 1,400 |
+| skills/create-story/SKILL.md | 3,999 | 1,333 | 3,999 | 1,333 | +0 | 1,400 |
+| skills/push/SKILL.md | 3,005 | 1,002 | 3,005 | 1,002 | +0 | 1,100 |
+| skills/update/SKILL.md | 2,799 | 933 | 2,799 | 933 | +0 | 1,000 |
+| skills/branch-feature/SKILL.md | 2,577 | 859 | 2,577 | 859 | +0 | 900 |
+| alwaysOn.context (skill listing) | 3,697 | 1,233 | 3,697 | 1,233 | +0 | 1,300 |
+| **total (bodies)** | 249,140 | 83,053 | 249,381 | 83,133 | +80 | |
+
 ## [3.11.0] — 2026-10-18
 
 ### Added
@@ -1913,6 +1962,7 @@ holes found while fixing them.
   Installed an empty plugin — no skills yet.
 
 [unreleased]: https://github.com/devstride/claude-plugin/compare/devstride--v3.11.0...HEAD
+[3.12.0]: https://github.com/devstride/claude-plugin/compare/devstride--v3.11.0...devstride--v3.12.0
 [3.11.0]: https://github.com/devstride/claude-plugin/compare/devstride--v3.10.0...devstride--v3.11.0
 [3.10.0]: https://github.com/devstride/claude-plugin/compare/devstride--v3.9.0...devstride--v3.10.0
 [3.9.0]: https://github.com/devstride/claude-plugin/compare/devstride--v3.8.0...devstride--v3.9.0
