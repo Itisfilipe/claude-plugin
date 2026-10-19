@@ -124,13 +124,13 @@ export function checkReleaseTower({ head, base, number, labels, config, openPull
 /**
  * When the queue changes — a release pull request opened, reopened, closed or retargeted — the run
  * ids to re-run: for each OTHER open release pull request into the production branch, its newest
- * release-tower run. A run is matched to a pull request ONLY by the pull-request numbers the
- * Actions API records on it: a pull_request_target run's head sha and head branch are the
- * repository's DEFAULT branch's (that is what GitHub runs the workflow from), so neither can name
- * the pull request. A pull request whose newest run is still in progress is left alone: that run
- * posts the fresh verdict. Nothing when the event's head was not a release head (a hotfix or a
- * stray feature branch changes no ordering); an empty event head (a manual dispatch) re-settles
- * every open release pull request. `runs` come newest first as
+ * release-tower run. A run is matched to a pull request by the pull-request numbers the Actions
+ * API records on it, else by its head branch (a pull_request_target run records the pull request's
+ * own head branch and sha, though it checks out the default branch) — never by sha alone, since
+ * two release branches can share a commit. A pull request whose newest run is still in progress
+ * is left alone: that run posts the fresh verdict. Nothing when the event's head was not a release
+ * head (a hotfix or a stray feature branch changes no ordering); an empty event head (a manual
+ * dispatch) re-settles every open release pull request. `runs` come newest first as
  * { databaseId, headSha, headBranch, status, pullRequests: [number] }.
  */
 const RUNNING = new Set(['in_progress', 'queued', 'waiting', 'pending', 'requested']);
@@ -140,7 +140,9 @@ export function selectReruns({ eventHead, eventNumber, config, openPullRequests,
   const ids = [];
   for (const pr of openPullRequests) {
     if (pr.number === eventNumber || !isReleaseHead(pr.headRefName ?? '', config)) continue;
-    const mine = runs.filter((r) => Array.isArray(r.pullRequests) && r.pullRequests.includes(pr.number));
+    const byNumber = runs.filter((r) => Array.isArray(r.pullRequests) && r.pullRequests.includes(pr.number));
+    const byBranch = runs.filter((r) => r.headBranch && r.headBranch !== config.productionBranch && r.headBranch === pr.headRefName);
+    const mine = byNumber.length ? byNumber : byBranch;
     const newest = mine.find((r) => Number.isInteger(r.databaseId));
     if (!newest || RUNNING.has(newest.status ?? '')) continue;
     ids.push(newest.databaseId);

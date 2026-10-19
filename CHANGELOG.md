@@ -34,7 +34,7 @@ for what each version component means here and how a release is cut.
     and matches no ruleset pattern. It needs git and `gh`. A claim starts a detached keeper that
     re-stamps the heartbeat while the claiming agent process lives, so a long review or deploy
     wait never reads as stale and a crashed agent goes stale on schedule. It writes a local record
-    (`~/.cache/devstride/release-clearance.json`) so a hook can answer "does this session hold
+    (`~/.cache/devstride/release-clearance/<owner>__<repo>.json`, one per repository) so a hook can answer "does this session hold
     clearance?" without the network. The holder identity is the same rule as a pool lease
     (`DEVSTRIDE_LEASE_TOKEN`, else the agent session ids, else a printed token).
   - **The contract** — five commands (`claim`, `status`, `heartbeat`, `release`, `adopt`), their
