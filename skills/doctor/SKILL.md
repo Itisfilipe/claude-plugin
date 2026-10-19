@@ -133,8 +133,8 @@ next action. For each failure symptom, read
   `${CLAUDE_PLUGIN_ROOT}/skills/plan/references/delivery-profiles.md`; read its resolution order,
   and say that a plan root's own marker or an explicit skill argument outranks the file at run time
   — this reports the repository's default, not what a particular plan will run under, and it never
-  calls a DevStride tool to find out. Any other value is a FAIL: skills read it as absent and
-  silently use `standard`. Fix: set one of the three names, or run `/devstride:setup`.
+  calls a DevStride tool to find out. Any other value is a FAIL: skills read it as unknown, fall
+  back to `standard` and say so. Fix: set one of the three names, or run `/devstride:setup`.
   **Then the contradictions.** Compare `epicIntegrationBranches.autoRelease` and
   `review.pollTimeoutMinutes` with the profile's values in the `| Key | prototype | standard |
   extended |` table at the top of

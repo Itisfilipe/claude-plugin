@@ -45,7 +45,8 @@ phase 1, and announce it with its source:
 
 - **Passed** (`profile: <name>`, the `build-item` path): use it as given, never re-resolve —
   "profile: standard — from the invocation". A name the contract does not define
-  (`profile: standart`) is a stop-and-ask, never a guess: no column would supply the knobs.
+  (`profile: standart`) is a stop-and-ask, never a guess: no column would supply the knobs;
+  the retired `enterprise` alone is read as `standard`, said so (the contract).
 - **Standalone**: walk the contract's resolution order; its root marker needs
   `get_item(view: 'full')` — a summary read omits the description and silently falls through.
   Announce the source ("… — from the plan root", "… — from config", "… — default").

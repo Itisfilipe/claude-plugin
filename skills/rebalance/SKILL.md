@@ -57,7 +57,8 @@ $ARGUMENTS
 
 - **Arguments.** Resolve the item with `get_item(view:"full")`; it must be a grouping item, never a
   leaf (a leaf → ask for its release unit or plan root). The target is one of the contract's bare
-  profile words (resolution-order item 1); none, or any other word in its place → ask. A wrong root
+  profile words (resolution-order item 1); none, or any other word in its place → ask (a target of
+  the retired `enterprise` → offer `extended` plus the contract's override recipe). A wrong root
   re-slices somebody else's plan; a guessed profile is the wrong grain at production speed. Note
   `--dry-run`.
 - **Roles at runtime.** `get_work_type_hierarchy` (and `get_workspace_context` for lanes and
