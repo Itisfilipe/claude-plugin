@@ -78,28 +78,29 @@ C2="$(node "$C" nonsense)"; RC2=$?
 if [ "$RA" -eq 2 ] && printf '%s' "$A" | grep -q '^ERROR: --number is required' && [ "$RB" -eq 2 ] && printf '%s' "$B" | grep -q 'release is missing' && [ "$RC2" -eq 2 ]; then
   ok "(10) missing argument / missing release block / unknown mode → ERROR, exit 2"; else bad "(10) a=$RA:$A b=$RB:$B c=$RC2:$C2"; fi
 
-# (11) reruns: when the queue changes, the newest finished run of each OTHER open release pull
-#      request, matched by the pull-request number the Actions API recorded on the run, else by
-#      head branch, else by sha; a run still in progress for that head defers the pull request;
-#      a closed hotfix re-runs nothing; a dispatch (no event head) re-settles every open release
+# (11) reruns: when the queue changes, the newest run of each OTHER open release pull request,
+#      matched ONLY by the pull-request number the Actions API recorded on the run — a
+#      pull_request_target run's sha and branch are the default branch's (d0/develop here), so they
+#      name nothing; a pull request whose newest run is still in progress is left alone; a closed
+#      hotfix re-runs nothing; a dispatch (no event head) re-settles every open release
 cat > "$W/open-rr.json" <<'J'
-[{"number":3985,"headRefName":"release/26-10-18-2","headRefOid":"aaa1"},{"number":3990,"headRefName":"release/26-10-19","headRefOid":"bbb2"},
- {"number":3991,"headRefName":"release/26-10-20","headRefOid":"aaa1"},{"number":3984,"headRefName":"phil/26-10-18/I3-feature","headRefOid":"ccc3"}]
+[{"number":3985,"headRefName":"release/26-10-18-2"},{"number":3990,"headRefName":"release/26-10-19"},
+ {"number":3991,"headRefName":"release/26-10-20"},{"number":3984,"headRefName":"phil/26-10-18/I3-feature"}]
 J
 cat > "$W/runs.json" <<'J'
-[{"databaseId":905,"headSha":"aaa1","headBranch":"release/26-10-20","status":"completed","pullRequests":[3991]},
- {"databaseId":901,"headSha":"aaa1","headBranch":"release/26-10-18-2","status":"completed","pullRequests":[3985]},
- {"databaseId":900,"headSha":"aaa0","headBranch":"release/26-10-18-2","status":"completed","pullRequests":[3985]},
- {"databaseId":902,"headSha":"bbb2","headBranch":"master","status":"in_progress","pullRequests":[]},
- {"databaseId":899,"headSha":"bbb2","headBranch":"master","status":"completed","pullRequests":[]},
- {"databaseId":903,"headSha":"ccc3","headBranch":"phil/26-10-18/I3-feature","status":"completed","pullRequests":[3984]}]
+[{"databaseId":905,"headSha":"d0","headBranch":"develop","status":"completed","pullRequests":[3991]},
+ {"databaseId":902,"headSha":"d0","headBranch":"develop","status":"in_progress","pullRequests":[3990]},
+ {"databaseId":901,"headSha":"d0","headBranch":"develop","status":"completed","pullRequests":[3985]},
+ {"databaseId":900,"headSha":"d0","headBranch":"develop","status":"completed","pullRequests":[3985]},
+ {"databaseId":899,"headSha":"d0","headBranch":"develop","status":"completed","pullRequests":[3990]},
+ {"databaseId":903,"headSha":"d0","headBranch":"develop","status":"completed","pullRequests":[3984]}]
 J
 A="$(node "$C" reruns --event-head release/26-10-18 --number 3981 --config "$W/config.json" --open-prs "$W/open-rr.json" --runs "$W/runs.json" | tr '\n' ' ')"
 B="$(node "$C" reruns --event-head phil/hotfix/26-10-18/I1-fix --number 3983 --config "$W/config.json" --open-prs "$W/open-rr.json" --runs "$W/runs.json" | tr '\n' ' ')"
 D="$(node "$C" reruns --event-head release/26-10-19 --number 3990 --config "$W/config.json" --open-prs "$W/open-rr.json" --runs "$W/runs.json" | tr '\n' ' ')"
 E="$(node "$C" reruns --event-head '' --number 0 --config "$W/config.json" --open-prs "$W/open-rr.json" --runs "$W/runs.json" | tr '\n' ' ')"
 if [ "$A" = "901 905 " ] && [ "$B" = "" ] && [ "$D" = "901 905 " ] && [ "$E" = "901 905 " ]; then
-  ok "(11) reruns → 901 and 905 (two branches on one sha, each its own run), never 899/902 (bbb2 has a run in progress), the event's own pull request excluded; a hotfix → none; a dispatch → all"
+  ok "(11) reruns → 901 (the newest of #3985) and 905, never 899 (#3990's newest run 902 is in progress) nor 903 (not a release), the event's own pull request excluded; a hotfix → none; a dispatch → all"
 else bad "(11) a='$A' b='$B' d='$D' e='$E'"; fi
 
 # (11b) a list as long as the limit fails the check closed, never ALLOWED

@@ -17,14 +17,15 @@ name: Release tower
 # from a file). Everything else — the release and hotfix patterns, the label — is
 # read at run time from `.claude/ds-config.json` by .github/scripts/release-tower-check.mjs.
 #
-# pull_request_target ON PURPOSE: the workflow definition, the checker and the
-# config all come from the pull request's BASE branch — the production branch —
-# so a pull request cannot edit its own gate. (That also means these two files
-# and the config take effect on production once the first release carries them
-# there; until then the check does not run.) NEVER check out or execute the pull
-# request head here — the verdict needs only the head's NAME, its number and the
-# labels, passed through env:, never interpolated into a script (branch names and
-# labels are user-controlled).
+# pull_request_target ON PURPOSE: GitHub runs this workflow, and checks out
+# github.sha, from the repository's DEFAULT branch (since 2025-12-08), never from
+# the pull request — so the workflow, the checker and the config are the default
+# branch's, a pull request cannot edit its own gate, and the check runs from the
+# moment these files reach that branch (where production is not the default
+# branch, a release pull request's own copy of them never runs). NEVER check out
+# or execute the pull request head here — the verdict needs only the head's NAME,
+# its number and the labels, passed through env:, never interpolated into a
+# script (branch names and labels are user-controlled).
 #
 # It runs on drafts too (it costs seconds). `edited` covers a pull request
 # retargeted onto the production branch; labeled/unlabeled re-evaluate with the
@@ -60,8 +61,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      # The base branch only (pull_request_target's default ref), and only the two
-      # files the verdict reads.
+      # The default branch (what GitHub checks out for pull_request_target), and only
+      # the two files the verdict reads.
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
@@ -123,7 +124,7 @@ jobs:
           BASE_REF: ${{ github.event.pull_request.base.ref || '{{PRODUCTION_BRANCH}}' }}
         run: |
           gh pr list --repo "$GITHUB_REPOSITORY" --base "$BASE_REF" --state open --limit 500 \
-            --json number,headRefName,headRefOid > open-prs.json
+            --json number,headRefName > open-prs.json
           # The Actions API records which pull request each run belongs to; gh run list does not.
           gh api "repos/$GITHUB_REPOSITORY/actions/workflows/release-tower.yaml/runs?event=pull_request_target&per_page=100" \
             --jq '[.workflow_runs[] | {databaseId: .id, headSha: .head_sha, headBranch: .head_branch, status: .status, pullRequests: [.pull_requests[]?.number]}]' \

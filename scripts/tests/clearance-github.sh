@@ -194,6 +194,9 @@ if [ "$RC" -eq 0 ] && printf '%s' "$OUT" | grep -q '^Clearance: held by bob on m
    && printf '%s' "$OUT" | grep -q '^Hotfix landed: #3983 phil/hotfix/26-10-18/I1-fix 2026-10-18T10:01:00Z$' && ! printf '%s' "$OUT" | grep -q '#3960' && ! printf '%s' "$OUT" | grep -q '#3984'; then
   ok "(13) status → Clearance line, On final (oldest release pull request), Waiting (draft), Hotfix landed since takenAt only"
 else bad "(13) rc=$RC: $OUT"; fi
+if grep -q -- '--state merged .*--search merged:>=2026-10-18' "$STATE/calls.log"; then
+  ok "(13b) the merged list is asked for merges since the claim's date only (a busy production branch never fills the page)"
+else bad "(13b) no --search merged:>=2026-10-18 in the gh calls log"; fi
 
 # (14) status --short is one token line for the status line; --json carries the record and facts
 run status --short; A="$RC:$OUT"
@@ -293,7 +296,7 @@ if [ "$RC" -eq 2 ] && printf '%s' "$OUT" | grep -q '^BUSY'; then ok "(18) claim 
 # (19) a push the server refuses outright (a ruleset) names the finding, exit 1
 fresh forbidden
 printf '#!/bin/bash\necho "refusing to update protected ref (rule)" >&2; exit 1\n' > "$STATE/origin.git/hooks/pre-receive"; chmod +x "$STATE/origin.git/hooks/pre-receive"
-run claim
+OUT="$(perl -e 'alarm 60; exec @ARGV' bash "$P" claim 2>&1)"; RC=$?   # a regression that retries forever fails here, never hangs
 if [ "$RC" -eq 1 ] && printf '%s' "$OUT" | grep -q 'refusing to update protected ref' && printf '%s' "$OUT" | grep -q 'ruleset that restricts ref creation'; then
   ok "(19) a refused push → ERROR keeping the server's words and naming the ruleset finding, exit 1"
 else bad "(19) rc=$RC: $OUT"; fi
@@ -330,5 +333,72 @@ run claim; KPID="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]
 run release; sleep 1; kill -0 "$KPID" 2>/dev/null && KALIVE=1 || KALIVE=0; kill "$OWNER" 2>/dev/null; wait "$OWNER" 2>/dev/null
 if [ -n "$KPID" ] && [ "$KALIVE" = 0 ] && [ ! -f "$CLEARANCE_RECORD" ]; then ok "(22b) release stops the keeper and removes the local record"; else bad "(22b) keeper=$KPID alive=$KALIVE"; fi
 export CLEARANCE_NO_KEEPER=1; unset CLEARANCE_OWNER_PID CLEARANCE_KEEPER_SECONDS
+
+# (22c) the keeper never asks gh for the repository: with gh down from the first tick on, it keeps stamping
+fresh keeper3; sleep 300 & OWNER=$!
+( unset CLEARANCE_NO_KEEPER CLEARANCE_REPO; export CLEARANCE_OWNER_PID=$OWNER CLEARANCE_KEEPER_SECONDS=1; bash "$P" claim >/dev/null 2>&1 )
+: > "$STATE/gh-down"
+T0="$(record heartbeatAt)"; sleep 3; T1="$(record heartbeatAt)"
+KPID="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("keeperPid",""))' "$CLEARANCE_RECORD" 2>/dev/null)"
+kill "$OWNER" 2>/dev/null; wait "$OWNER" 2>/dev/null; sleep 3; rm -f "$STATE/gh-down"
+if [ -n "$KPID" ] && [ "$T1" != "$T0" ] && [ "$T1" \> "$T0" ] && ! kill -0 "$KPID" 2>/dev/null; then
+  ok "(22c) the keeper (pid $KPID) stamps on while gh is unreachable, and still exits with its owner"
+else bad "(22c) keeper=$KPID T0=$T0 T1=$T1"; fi
+
+# (23) the holder's own keeper moving the ref is not a lost clearance: heartbeat and release carry on
+#      from the object the keeper wrote (hook declines the first push while armed; a side process
+#      re-stamps the ref for the SAME holder the moment it was declined — a keeper tick, in effect)
+fresh ownstamp
+run claim
+cat > "$STATE/origin.git/hooks/pre-receive" <<HOOK
+#!/bin/bash
+if [ -f "$STATE/stamp-armed" ]; then : > "$STATE/stamp-declined"; echo "keeper landing" >&2; exit 1; fi
+exit 0
+HOOK
+chmod +x "$STATE/origin.git/hooks/pre-receive"
+restamp() { # restamp AT — a tag for THIS holder with a fresh heartbeat, present on origin, moved into place by a side process
+  local sha
+  sha="$(printf 'object %s\ntype commit\ntag release-clearance\ntagger t <t@t> 1 +0000\n\n{"v":1,"repo":"o/r","holder":"claude:me-1","user":"alice","machine":"m9","purpose":"release","phase":"claimed","branch":null,"pr":null,"takenAt":"2026-10-18T10:05:00Z","heartbeatAt":"%s"}\n' "$(git rev-parse HEAD)" "$1" | git hash-object -t tag -w --stdin)"
+  git push -q origin "${sha}:refs/race-seed/$1"
+  rm -f "$STATE/stamp-declined"; : > "$STATE/stamp-armed"
+  ( until [ -f "$STATE/stamp-declined" ]; do sleep 0.05; done; git -C "$STATE/origin.git" update-ref refs/clearance/release "$sha"; rm -f "$STATE/stamp-armed" ) &
+}
+restamp 2026-10-18T10:06:00Z
+run heartbeat review --branch release/26-10-18
+wait
+HB_RC=$RC; HB_OUT="$OUT"
+restamp 2026-10-18T10:07:00Z
+run release
+wait
+if [ "$HB_RC" -eq 0 ] && printf '%s' "$HB_OUT" | grep -q '^HEARTBEAT review' && [ "$RC" -eq 0 ] && printf '%s' "$OUT" | grep -q '^RELEASED' && [ -z "$(refsha)" ] && [ ! -f "$CLEARANCE_RECORD" ]; then
+  ok "(23) a stamp by this holder's own keeper between read and push → heartbeat and release retry on the new object, exit 0 (NOT HOLDER is for another holder)"
+else bad "(23) heartbeat rc=$HB_RC: $HB_OUT / release rc=$RC: $OUT (ref: $(refsha))"; fi
+
+# (24) a checkout that has not fetched production's newest commits still claims and heartbeats: the
+#      tag points at a blob of its own, never at a commit the checkout may lack
+fresh stale-checkout
+git clone -q "$STATE/origin.git" "$STATE/other" && git -C "$STATE/other" commit -q --allow-empty -m newer && DEVSTRIDE_MERGE_GUARD=0 git -C "$STATE/other" push -q origin HEAD:master
+run claim; C_RC=$RC; C_OUT="$OUT"
+run heartbeat cut --branch release/26-10-18
+if [ "$C_RC" -eq 0 ] && [ "$RC" -eq 0 ] && [ "$(record branch)" = release/26-10-18 ] && [ "$(git cat-file -t "$(git fetch -q origin refs/clearance/release && git rev-parse FETCH_HEAD^{})")" = blob ]; then
+  ok "(24) a checkout behind production still claims and heartbeats; the clearance tag points at a blob, not a commit"
+else bad "(24) claim rc=$C_RC: $C_OUT / heartbeat rc=$RC: $OUT"; fi
+
+# (17b) claim --wait rides out a remote that cannot be asked for one poll, then wins
+fresh waitdown; held claude:other review release/26-10-18 3981
+( sleep 1; mv "$STATE/origin.git" "$STATE/origin.off"; sleep 2; mv "$STATE/origin.off" "$STATE/origin.git"; git push -q origin ":refs/clearance/release" ) &
+run claim --wait
+wait
+if [ "$RC" -eq 0 ] && printf '%s' "$OUT" | grep -q 'polling again' && printf '%s' "$OUT" | grep -q '^CLEARED'; then
+  ok "(17b) claim --wait: an unreadable ref mid-wait is a progress line, not exit 1; CLEARED once it frees"
+else bad "(17b) rc=$RC: $OUT"; fi
+
+# (16i) the verdict is stdout's first line even when no keeper can be started
+fresh nokeeper
+OUT="$( ( unset CLEARANCE_NO_KEEPER; export CLEARANCE_OWNER_PID=none; bash "$P" claim 2>/dev/null ) )"; RC=$?
+if [ "$RC" -eq 0 ] && [ "$(printf '%s' "$OUT" | head -n 1 | cut -c1-7)" = CLEARED ]; then
+  ok "(16i) no keeper (owning process not found) → the note goes to stderr; stdout's first line is still CLEARED"
+else bad "(16i) rc=$RC: $OUT"; fi
+export CLEARANCE_NO_KEEPER=1; unset CLEARANCE_OWNER_PID
 
 exit $FAIL

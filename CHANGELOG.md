@@ -46,7 +46,7 @@ for what each version component means here and how a release is cut.
     when clear; the managed script marker is now v3.2.0. Transient: never asked about.
   - **`setup ci` offers a fifth mechanic, release ordering**, once clearance is set: the
     `release-tower` GitHub check from `skills/setup/references/ci-templates/` — `pull_request_target`
-    on the production branch, read from the base branch, the head never checked out — which
+    on the production branch, run from the default branch, the head never checked out — which
     passes a hotfix head, the oldest open release pull request and a pull request carrying
     `releaseTower.overrideLabel` (default `release-tower-override`), holds a later release pull
     request with "<head> (#n) is on final; this release waits" and re-runs it by itself when the

@@ -76,10 +76,11 @@ reads the exit code and quotes the line; it never parses further.
   `user` is `gh api user`'s login; `machine` is the hostname. A claim or adoption by the session
   that already holds it renews the heartbeat.
 - **The local record.** On `claim` and `adopt` the provider writes
-  `${XDG_CACHE_HOME:-$HOME/.cache}/devstride/release-clearance.json` — `{ repo, holder, user,
-  machine, branch, pr, takenAt }`, mode 0600 — updates `branch`/`pr` on each heartbeat, and
-  removes it on `release` — and on any `NOT HOLDER`, so a session that lost the clearance is not
-  still vouched for. A hook answers "does THIS session hold clearance for THIS repository?" from
+  `${XDG_CACHE_HOME:-$HOME/.cache}/devstride/release-clearance/<owner>__<repo>.json` (one file
+  per repository, so two repositories claimed under one account never overwrite each other's) —
+  `{ repo, holder, user, machine, branch, pr, takenAt, keeperPid }`, mode 0600 — updates
+  `branch`/`pr` on each heartbeat, and removes it on `release` — and on any `NOT HOLDER`, so a
+  session that lost the clearance is not still vouched for. A hook answers "does THIS session hold clearance for THIS repository?" from
   that file alone, with no network; it is an observation, refreshed by every provider call, not
   proof against the ref itself. The path and shape are part of this contract.
 - **Hotfix facts are DERIVED, never recorded.** `status` lists hotfix landings from GitHub's merged
@@ -98,7 +99,10 @@ whose message is the record as JSON. **Every move of the ref is a compare-and-sw
 --force-with-lease=<ref>:<expected>`, where a claim expects the ref to be absent and a heartbeat,
 an adoption or a stale takeover expects exactly the object it read. The server rejects every
 caller whose expectation is stale, so there is no look-then-act — not on the claim, not on the
-stale path, not on release. A ref the remote cannot be asked about (not signed in, no network) is
+stale path, not on release; a holder's own command whose push the keeper's stamp beat retries on
+the stamped object (only a record naming someone else is NOT HOLDER). The push runs no hook of the
+repository (`--no-verify`), and the tag points at a blob of its own, so a checkout behind
+production still claims. A ref the remote cannot be asked about (not signed in, no network) is
 UNKNOWN, never clear; a record that is not valid JSON with a holder and a time is UNREADABLE and
 is never taken over except by the owner's `release --force`. The ref is neither a branch nor a tag,
 so it triggers no workflow, appears in no branch or tag list, and no ruleset pattern matches it.
@@ -133,14 +137,15 @@ production branch merges with no clearance step.
 `${CLAUDE_PLUGIN_ROOT}/skills/setup/references/ci-templates/release-tower.yaml` with its checker
 `release-tower-check.mjs` (written to `.github/workflows/release-tower.yaml` and
 `.github/scripts/release-tower-check.mjs`; GitHub only, Node 22, no dependencies). It runs
-`pull_request_target` on the production branch, so the workflow, the checker and the config are
-read from the pull request's BASE branch — production — and a pull request cannot edit its own
-gate (the head is never checked out; the first release carries the files to production, and the
-check runs from then on). It passes a hotfix head, the OLDEST open release pull request, and a
+`pull_request_target` on the production branch; GitHub runs that event, and checks out its files,
+from the repository's DEFAULT branch (since 2025-12-08), so the workflow, the checker and the
+config are the default branch's, a pull request cannot edit its own gate (the head is never
+checked out), and the check runs from the moment the files reach the default branch. It passes a hotfix head, the OLDEST open release pull request, and a
 pull request carrying `releaseTower.overrideLabel`; a later release pull request is held with
 `<head> (#n) is on final; this release waits`; any other head gets the retarget line. Whenever a
-release pull request opens, reopens, closes or is retargeted onto production, the newest finished
-run of every OTHER open release pull request is re-run, so the queue re-settles without a push. A
+release pull request opens, reopens, closes or is retargeted onto production, the newest run of
+every OTHER open release pull request (matched by the pull-request number the Actions API records
+on a run) is re-run, so the queue re-settles without a push. A
 release pull request retargeted AWAY from production fires no event there: run
 `gh workflow run release-tower.yaml` once, or wait for the next event — and the release skill's
 step 4 checks `On final` at the moment of merge regardless. **Making it REQUIRED on the production

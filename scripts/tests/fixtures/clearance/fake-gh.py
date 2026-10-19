@@ -35,6 +35,10 @@ def prs():
 
 log(" ".join(args))
 
+if os.path.exists(os.path.join(STATE, "gh-down")):
+    sys.stderr.write("gh: error connecting to api.github.com\n")
+    sys.exit(1)
+
 if args[:3] == ["repo", "view", "--json"]:
     print("o/r")
     sys.exit(0)
@@ -55,7 +59,12 @@ if args[:2] == ["pr", "view"]:
 if args[:2] == ["pr", "list"]:
     state = args[args.index("--state") + 1]
     fields = args[args.index("--json") + 1].split(",")
-    rows = [{k: pr.get(k) for k in fields} for pr in prs() if pr["state"].lower() == state]
+    rows = [pr for pr in prs() if pr["state"].lower() == state]
+    if "--search" in args:
+        search = args[args.index("--search") + 1]
+        if search.startswith("merged:>="):
+            rows = [pr for pr in rows if (pr.get("mergedAt") or "")[:10] >= search[len("merged:>="):]]
+    rows = [{k: pr.get(k) for k in fields} for pr in rows]
     print(json.dumps(rows))
     sys.exit(0)
 
