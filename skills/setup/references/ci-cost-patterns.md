@@ -5,7 +5,8 @@ load: contract
 
 Every delivery profile has the same floor: expensive CI runs **once per pull request, on the
 final reviewed and pre-ship-checked HEAD**, and once per merge to the base branch. Four workflow
-mechanics enforce that mechanically, so it does not depend on discipline. `/devstride:setup ci`
+mechanics enforce that mechanically, so it does not depend on discipline, and a fifth — opt-in,
+offered only when `release.clearance` is set — sequences releases themselves. `/devstride:setup ci`
 detects which are present, proposes missing ones as exact diffs, and applies them only on
 acceptance; `/devstride:doctor` reports them; `/devstride:ci-audit` measures both excess runs and
 runs that started before the final ready-for-review event.
@@ -193,6 +194,24 @@ shape above is worth re-copying: a failure attached to the head SHA at a non-dra
 superseded by a pass on the same SHA when the person converts to draft (no new SHA), instead of
 staying red until the later ready flip inherits it. Concurrency (pattern B) still cancels the
 runs the mistaken open started in the other workflows.
+
+## E. Release ordering — one release pull request at a time (opt-in)
+
+Offered only when `release.clearance` is set (`clearance.md`): the clearance a session claims is
+the speed bump, this check is the floor. `setup ci` writes two files from
+`${CLAUDE_PLUGIN_ROOT}/skills/setup/references/ci-templates/` —
+`.github/workflows/release-tower.yaml`, with `{{PRODUCTION_BRANCH}}` replaced by
+`release.productionBranch` (the one value a trigger filter cannot read from a file), and
+`.github/scripts/release-tower-check.mjs` verbatim — as a diff, on an explicit yes, and never over
+a differing copy without showing that diff. The job is named `release-tower`; it runs
+`pull_request_target` on the production branch (GitHub runs it, and checks out its files, from the
+DEFAULT branch, so it runs from the moment the files reach that branch), never checks out the head,
+and passes a hotfix head, the OLDEST open release pull request and a pull request carrying
+`releaseTower.overrideLabel`, holds a later release pull request with `<head> (#n) is on final;
+this release waits` (re-run by itself when the one ahead closes), and gives any other head the
+retarget line. **Making it required on the production branch's ruleset is the owner's change**,
+to be made once the check has posted green on one real release pull request; say so when writing
+the files. GitHub only: a repository on another provider gets no equivalent, said plainly.
 
 ## The loop rules these mechanics pair with
 

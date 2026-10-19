@@ -17,6 +17,9 @@ development branch's unreleased work. Branch name argument: $ARGUMENTS (none →
   wins**; no file → defaults, said so.
 - **Clean tree first.** `git status --porcelain` dirty → STOP and ask whether to stash or commit;
   never carry changes onto the production branch.
+- **A hotfix never claims release clearance** (`release.clearance`, when set): it is cut, reviewed
+  and merged into the production branch whoever holds the runway, and the release in flight
+  learns of it from the provider's `status` and re-reviews (`release/references/clearance.md`).
 - **Recommend stopping any running dev server BEFORE the switch** — production code under a server
   or a database migrated to the development schema causes confusing failures. It runs in the user's
   terminal, so remind them now; you cannot stop it.

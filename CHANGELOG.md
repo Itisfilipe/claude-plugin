@@ -8,6 +8,81 @@ for what each version component means here and how a release is cut.
 
 ## [Unreleased]
 
+## [3.11.0] — 2026-10-18
+
+### Added
+
+- **Release clearance: one cleared release at a time, across every machine and account.** A
+  repository whose releases are cut from more than one machine, or by more than one person or
+  agent, can set `release.clearance` (`{ "provider": "github" }`, or five commands of its own).
+  The release skill then CLAIMS clearance before it touches the support train or cuts a release
+  branch (step 0a, `claim --wait`), waits and names who holds it when denied, heartbeats each
+  phase so a crashed session cannot hold the runway forever, and hands clearance back as the
+  last act of its close-out — after the sync pull request and the branch deletion, so a failed
+  post-deploy check keeps it for the retry. A stale clearance (heartbeat older than
+  `staleMinutes`, default 20) whose pull request merged or closed, or that never opened one, is
+  reclaimed by the next claim; one whose pull request is still open is ADOPTED with the owner's
+  yes, on the existing adopted-release-branch path, never deleted. Nothing ever blocks a hotfix:
+  `branch-hotfix` never claims, and the release in flight learns of a landed hotfix from the
+  provider's `status` and re-reviews. Absent or null, nothing changes.
+  - **The built-in provider** (`skills/release/scripts/clearance-github.sh`) keeps the clearance in
+    the custom ref `refs/clearance/release`, pointing at a tag object whose message is the record
+    (holder, user, machine, purpose, phase, branch, pull request, takenAt, heartbeatAt). Every move
+    of the ref is a compare-and-swap through `git push --force-with-lease` — a claim expects no
+    ref, a heartbeat, adoption or stale takeover expects exactly the object it read — so there is
+    no look-then-act anywhere; the ref is neither a branch nor a tag, so it triggers no workflow
+    and matches no ruleset pattern. It needs git and `gh`. A claim starts a detached keeper that
+    re-stamps the heartbeat while the claiming agent process lives, so a long review or deploy
+    wait never reads as stale and a crashed agent goes stale on schedule. It writes a local record
+    (`~/.cache/devstride/release-clearance/<owner>__<repo>.json`, one per repository) so a hook can answer "does this session hold
+    clearance?" without the network. The holder identity is the same rule as a pool lease
+    (`DEVSTRIDE_LEASE_TOKEN`, else the agent session ids, else a printed token).
+  - **The contract** — five commands (`claim`, `status`, `heartbeat`, `release`, `adopt`), their
+    exit codes and first lines — is `skills/release/references/clearance.md`, so a repository can
+    supply its own provider. `status` lists the oldest open release pull request (on final), the
+    ones waiting, and every hotfix landed since the claim — derived from GitHub, never recorded.
+  - **The status line gains a `Release` segment** (`release/26-10-17 · alice · ci`, `· STALE`
+    past the threshold) from the provider's `status --short`, cached like the PR segment and blank
+    when clear; the managed script marker is now v3.2.0. Transient: never asked about.
+  - **`setup ci` offers a fifth mechanic, release ordering**, once clearance is set: the
+    `release-tower` GitHub check from `skills/setup/references/ci-templates/` — `pull_request_target`
+    on the production branch, run from the default branch, the head never checked out — which
+    passes a hotfix head, the oldest open release pull request and a pull request carrying
+    `releaseTower.overrideLabel` (default `release-tower-override`), holds a later release pull
+    request with "<head> (#n) is on final; this release waits" and re-runs it by itself when the
+    one ahead closes, and gives any other head a retarget line. Making it required on the production
+    branch's ruleset is the owner's change, after it has posted green on a real release.
+  - `doctor` audits `release.clearance` (both keys, an unknown provider, a missing verb, an
+    unreadable ref) and recognizes `releaseTower`.
+
+### Cost
+
+<!-- scripts/measure-cost.sh --table --since devstride--v3.10.0 @ aaf7445, method: tokens = ceil(utf8_bytes / 3); bytes as `wc -c` -->
+| File | bytes@devstride--v3.10.0 | tokens@devstride--v3.10.0 | bytes now | tokens now | Δ tokens | budget |
+|---|---:|---:|---:|---:|---:|---:|
+| skills/setup/SKILL.md | 32,012 | 10,671 | 32,098 | 10,700 | +29 | 10,700 |
+| skills/doctor/SKILL.md | 23,987 | 7,996 | 23,990 | 7,997 | +1 | 8,000 |
+| skills/build-item/SKILL.md | 23,979 | 7,993 | 23,979 | 7,993 | +0 | 8,000 |
+| skills/plan/SKILL.md | 23,922 | 7,974 | 23,922 | 7,974 | +0 | 8,000 |
+| skills/review/SKILL.md | 23,900 | 7,967 | 23,900 | 7,967 | +0 | 8,000 |
+| skills/release/SKILL.md | 21,836 | 7,279 | 23,332 | 7,778 | +499 | 7,800 |
+| skills/rebalance/SKILL.md | 17,218 | 5,740 | 17,218 | 5,740 | +0 | 5,800 |
+| skills/ultracode-build/SKILL.md | 14,398 | 4,800 | 14,398 | 4,800 | +0 | 4,800 |
+| skills/pr/SKILL.md | 11,289 | 3,763 | 11,289 | 3,763 | +0 | 3,800 |
+| skills/rationalize-gantt/SKILL.md | 7,936 | 2,646 | 7,936 | 2,646 | +0 | 2,700 |
+| skills/ci-audit/SKILL.md | 7,570 | 2,524 | 7,570 | 2,524 | +0 | 2,600 |
+| skills/create-defect/SKILL.md | 7,481 | 2,494 | 7,481 | 2,494 | +0 | 2,500 |
+| skills/branch-hotfix/SKILL.md | 6,034 | 2,012 | 6,321 | 2,107 | +95 | 2,200 |
+| skills/insert-defect/SKILL.md | 4,714 | 1,572 | 4,714 | 1,572 | +0 | 1,600 |
+| skills/comprehend-plan/SKILL.md | 4,575 | 1,525 | 4,575 | 1,525 | +0 | 1,600 |
+| skills/insert-story/SKILL.md | 4,037 | 1,346 | 4,037 | 1,346 | +0 | 1,400 |
+| skills/create-story/SKILL.md | 3,999 | 1,333 | 3,999 | 1,333 | +0 | 1,400 |
+| skills/push/SKILL.md | 3,005 | 1,002 | 3,005 | 1,002 | +0 | 1,100 |
+| skills/update/SKILL.md | 2,799 | 933 | 2,799 | 933 | +0 | 1,000 |
+| skills/branch-feature/SKILL.md | 2,577 | 859 | 2,577 | 859 | +0 | 900 |
+| alwaysOn.context (skill listing) | 3,697 | 1,233 | 3,697 | 1,233 | +0 | 1,300 |
+| **total (bodies)** | 247,268 | 82,429 | 249,140 | 83,053 | +624 | |
+
 ## [3.10.0] — 2026-10-06
 
 ### Fixed
@@ -1837,7 +1912,8 @@ holes found while fixing them.
 - Initial scaffold: plugin manifest, marketplace entry, MIT license, and repository conventions.
   Installed an empty plugin — no skills yet.
 
-[unreleased]: https://github.com/devstride/claude-plugin/compare/devstride--v3.10.0...HEAD
+[unreleased]: https://github.com/devstride/claude-plugin/compare/devstride--v3.11.0...HEAD
+[3.11.0]: https://github.com/devstride/claude-plugin/compare/devstride--v3.10.0...devstride--v3.11.0
 [3.10.0]: https://github.com/devstride/claude-plugin/compare/devstride--v3.9.0...devstride--v3.10.0
 [3.9.0]: https://github.com/devstride/claude-plugin/compare/devstride--v3.8.0...devstride--v3.9.0
 [3.8.0]: https://github.com/devstride/claude-plugin/compare/devstride--v3.7.0...devstride--v3.8.0

@@ -3,7 +3,7 @@ load: contract
 ---
 # Status-line segments: what each one needs, and what to do when it is blank
 
-The status line renders `Model · Effort · Repo · Checkout · Branch · Stage · PR`. **A segment with
+The status line renders `Model · Effort · Repo · Checkout · Branch · Stage · PR · Release`. **A segment with
 no value is not rendered at all** — `seg` in `statusline.sh` drops it, separator and label
 together. A label printed with nothing after it ("`Checkout:    `") reads as a value that failed to
 load and sends people hunting for a break that is not there, so it never happens.
@@ -23,6 +23,7 @@ is not?**
 | `branch` | Branch | `git branch --show-current`, else `<sha> (detached)` | A repository with no commit yet — **transient** |
 | `stage` | Stage | stdout of `stage.resolve`, cached ~10s | **Structural** — no `stage` block, or a `resolve` that prints nothing |
 | `pr` | PR | `gh pr view` for the current branch, cached ~45s | This branch has no pull request (**transient**), or `gh` is missing/unauthenticated (an §1 finding) |
+| `release` | Release | the clearance provider's `status --short` (`release.clearance`), cached ~45s: `release/26-10-17 · alice · ci`, `· STALE` past the stale threshold | No release holds clearance (**transient**), `release.clearance` is null (by design, never asked), or no provider could be found (`doctor` config reports a `provider: github` with no installed plugin) |
 
 ## Which blanks are worth asking about
 
@@ -35,6 +36,9 @@ into an interrogation, and trains people to skip the answers that matter. Concre
 - **Never ask about `pr` merely because the current branch has no pull request.** That is the
   normal state of a branch and it is right for the segment to be absent. It is worth raising only
   when §1 found `gh` missing or unauthenticated — and then the fix is `gh`, not the status line.
+- **Never ask about `release`.** Clear is the normal state of a repository, and a null
+  `release.clearance` is a decision already recorded in the config; the segment exists to show a
+  release in flight, nothing more.
 - **Ask about `stage`.** It is the one segment whose absence is genuinely ambiguous: a repository
   that deploys nothing per-environment and a repository whose `stage.resolve` was never configured
   look identical from here.

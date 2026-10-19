@@ -16,27 +16,29 @@ Optional argument: $ARGUMENTS
 - **`validate`** — skip to Phase G on the config already there; nothing asked or written.
   **Run A1 first even so** — Phase G assumes the repository root.
 - **A detector name** — `ecosystem` (A2–A3), `verify` (A4), `ci-inspect` (A5), `branches` (A6),
-  `engines` (A7) — inspect and report just that part. (`ci-inspect`, not `ci` — the bare word is the write mode.)
-- **`docs`** — the documentation-hooks mode, the one narrowed run that WRITES: A1 + A8, Phase
-  D's three documentation questions plus `release.deployVerification`, then write **only** the
+  `engines` (A7) — inspect and report that part (`ci-inspect`, not `ci`: the bare word writes).
+- **`docs`** — the documentation-hooks mode, a narrowed run that WRITES: A1 + A8, Phase
+  D's three documentation questions and `release.deployVerification`, then write **only** the
   `docs` block and that key (create-with-just-those-keys or Phase F merge, `release.docsRepo`
   migration included), scaffold E2, run Phase G check 7 alone.
-- **`ci`** — the CI-cost mode, the second narrowed run that WRITES, and the only mode that
-  touches a workflow file: A1 + A5; detect which of the four mechanics in
+- **`ci`** — the CI-cost mode, the second narrowed run that WRITES, the only mode touching a
+  workflow file: A1 + A5; detect which of the four mechanics in
   `${CLAUDE_PLUGIN_ROOT}/skills/setup/references/ci-cost-patterns.md` each pull-request
   workflow carries; show the **exact diff** per mechanic missing OR present-but-inert; apply
-  only accepted diffs — nothing else rewritten. Write `ci.expectedRunsPerPullRequest` if absent. **Draft-gate diffs accepted while the three
+  only accepted diffs — nothing else rewritten. Write `ci.expectedRunsPerPullRequest` if absent.
+  With `release.clearance` set, offer the fifth mechanic too, **release ordering** (§E). **Draft-gate diffs accepted while the three
   `review.*` CI-ordering booleans are `false` → propose flipping them `true` in the same
-  change.** Run Phase G's CI checks. Offer `/devstride:ci-audit` first for numbers.
+  change.** Run Phase G's CI checks; offer `/devstride:ci-audit` first.
 - **Nothing** — the full run: inspect, ask, write, scaffold, validate.
 
 **Run each mode's prerequisites silently — A1 always, A2–A3 before A4.** A narrowed run reports
-fewer keys, never worse ones, **stops after Phase B and writes nothing**; a full `/devstride:setup` is what writes. **`docs` and
+fewer keys, never worse ones, and **stops after Phase B, writing nothing**; a full run writes. **`docs` and
 `ci` are the exceptions by design** — each writes exactly the keys its own questions answer.
 
 **The write boundary — the whole of it**: `.claude/ds-config.json`; in E2 only, the scaffolded
 skills (never overwriting); in `ci` mode only, the pull-request workflows under
-`ci.workflowGlobs` (each change a diff, applied on an explicit yes). Nothing else, ever — no git
+`ci.workflowGlobs` and the release-tower pair (each change a diff, applied on an explicit yes).
+Nothing else, ever — no git
 mutation, no installs, no DevStride **write** tool. **Phases A–D are strictly read-only**:
 `git status --porcelain` stays byte-identical until the write.
 
@@ -352,7 +354,7 @@ was missing and, under `prototype`, that the file now contradicts its profile. *
 and `review.pollTimeoutMinutes` take the profile's values** unless the owner answered `ask` —
 `autoRelease: true` for `prototype` repeats the consequence at the write, naming `baseBranch`.
 
-Say what was written; go to E2, then E3, then G. **The run is not finished at the write.**
+Say what was written; go to E2, E3, then G. **The run is not finished at the write.**
 
 ## Phase E2 — scaffold the local documentation skills
 
@@ -376,11 +378,11 @@ Only when Phase D said yes. Copy
 { "statusLine": { "type": "command", "command": "bash .claude/statusline.sh", "padding": 0 } }
 ```
 
-**Copy it verbatim — nothing is substituted**: it reads the consuming repository's config at
-runtime for `stage.*`, and a `{{PLACEHOLDER}}` edited in is a bug, not a customization.
+**Copy it verbatim — nothing is substituted**: it reads the repository's config at runtime, and
+a `{{PLACEHOLDER}}` edited in is a bug, not a customization.
 
-**Never overwrite an existing `.claude/statusline.sh`** — the owner may have edited it. Say it is
-already there and leave it.
+**Never overwrite an existing `.claude/statusline.sh`** — the owner may have edited it. Say so
+and leave it.
 
 Then prove it runs — a status line fails silently:
 
@@ -388,8 +390,8 @@ Then prove it runs — a status line fails silently:
 printf '{"workspace":{"current_dir":"%s"}}' "$PWD" | bash .claude/statusline.sh; echo
 ```
 
-Non-empty output is the pass. Confirm neither file is gitignored (`git check-ignore` exits 1) and
-say both are the owner's to edit.
+Non-empty output is the pass. Confirm neither file is gitignored (`git check-ignore` exits 1);
+both are the owner's to edit.
 
 Then **look at which segments that render actually produced**, and ask about the structurally
 absent ones — in practice `stage`. Answers
@@ -460,8 +462,9 @@ phase** — it holds each check's full procedure, its run rules, and the failure
    `ready_for_review` (a convention-only workflow is excluded). Missing `concurrency` and a tree
    skip absent/`present but inert` remain cost warnings. **Never edit a workflow in a full or
    validate run; only `setup ci` may apply an accepted diff.**
-7. **Docs hooks** — null = N/A; otherwise require the skill + passing `check` mode. Legacy
-   `release.docsRepo` fails with the Phase F migration. Probe but do not run deploy verification.
+7. **Docs hooks, and clearance** — null = N/A; otherwise require the skill + passing `check` mode.
+   Legacy `release.docsRepo` fails with the Phase F migration. Probe but do not run deploy
+   verification. `release.clearance` set → its shape per the checklist, then `status`.
 
 **The verdict is the output**: every check with its outcome, then one line — **loop-ready** only
 with zero failures; skips and unverifiables are fine, named. Say when **the working tree was

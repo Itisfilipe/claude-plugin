@@ -122,8 +122,9 @@ take the latest `mergedAt`. Never trust best-match ranking or a body match alone
 
 ## 4. A hotfix lands while the release is open
 
-`git fetch origin <productionBranch>`; when `origin/<productionBranch>` is not an ancestor of
-`origin/<name>`: `git switch <name> && git merge --no-ff origin/<productionBranch>` (a conflict
+`git fetch origin <productionBranch>` (with `release.clearance` set, the provider's `status`
+names each hotfix landed since the claim as `Hotfix landed: #<n>`); when `origin/<productionBranch>`
+is not an ancestor of `origin/<name>`: `git switch <name> && git merge --no-ff origin/<productionBranch>` (a conflict
 STOPS with the files), push — on a non-draft pull request run `gh pr ready --undo` BEFORE the push,
 so CI never runs on an unreviewed head — then re-enter `review` driven as a contextual follow-up
 over the merge's range (its step 5 rule), carrying the ledger, counters and the same pre-ship hold
@@ -155,6 +156,10 @@ advanced under a release-branch head.
    train not yet created is skipped, said so; leave it out of the fetch above), by §1 step 7's rule
    (fast-forward when it is an ancestor of the source, else merge the source into it), so the
    release's own fixes reach it too; report how many unreleased one-offs it carries.
+4. **Hand clearance back last** (`release.clearance` set): the provider's `release`, only now —
+   after 1–3 — so a session that waits on `claim --wait` starts from a synced source and a
+   level train. A close-out that stops before this point keeps clearance for the retry
+   (`clearance.md`).
 
 ## Cited by
 

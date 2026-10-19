@@ -152,6 +152,19 @@ bend for a helpful one-line change to somebody's CI. Validation itself writes no
 | `release.docsRepo` is present (with or without a `docs` block) | The config predates 1.0 | Run `/devstride:setup docs`: it scaffolds the local skills from the block's values, writes `docs.*`, and removes `docsRepo` |
 | Release notes were requested and nothing happened | `docs.releaseNotesSkill` is `null` — the owner said this repository does not publish notes | Nothing to do, or run `/devstride:setup docs` to register one |
 
+### Release clearance
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| `release.clearance` has both `provider` and `commands` | two providers named | keep one: `{ "provider": "github" }`, or the five `commands` |
+| `provider` is not `github` | no such built-in provider | `"github"`, or supply `commands` |
+| `commands` lacks `claim`, `status`, `heartbeat`, `release` or `adopt` | an incomplete provider | add the missing verb (contract: `release/references/clearance.md`) |
+| the provider's `status` prints `UNKNOWN …` or exits 1 | the remote cannot be asked: `gh` signed out, no `origin`, no network | `gh auth login`; check `git ls-remote origin` |
+| `status` names a record as UNREADABLE | the ref holds something that is not a clearance record | the owner runs the provider's `release --force` |
+
+Read-only: `status` never claims. A green `status` proves the ref can be read, not that a claim
+would be allowed (a ruleset restricting ref creation shows only on the first claim).
+
 ## Cited by
 
 - `skills/setup/SKILL.md` — the Phase G pointer ("Read … when you run this phase"), which maps
