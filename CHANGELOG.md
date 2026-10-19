@@ -57,7 +57,31 @@ for what each version component means here and how a release is cut.
 
 ### Cost
 
-(generated at release)
+<!-- scripts/measure-cost.sh --table --since devstride--v3.10.0 @ aaf7445, method: tokens = ceil(utf8_bytes / 3); bytes as `wc -c` -->
+| File | bytes@devstride--v3.10.0 | tokens@devstride--v3.10.0 | bytes now | tokens now | Δ tokens | budget |
+|---|---:|---:|---:|---:|---:|---:|
+| skills/setup/SKILL.md | 32,012 | 10,671 | 32,098 | 10,700 | +29 | 10,700 |
+| skills/doctor/SKILL.md | 23,987 | 7,996 | 23,990 | 7,997 | +1 | 8,000 |
+| skills/build-item/SKILL.md | 23,979 | 7,993 | 23,979 | 7,993 | +0 | 8,000 |
+| skills/plan/SKILL.md | 23,922 | 7,974 | 23,922 | 7,974 | +0 | 8,000 |
+| skills/review/SKILL.md | 23,900 | 7,967 | 23,900 | 7,967 | +0 | 8,000 |
+| skills/release/SKILL.md | 21,836 | 7,279 | 23,332 | 7,778 | +499 | 7,800 |
+| skills/rebalance/SKILL.md | 17,218 | 5,740 | 17,218 | 5,740 | +0 | 5,800 |
+| skills/ultracode-build/SKILL.md | 14,398 | 4,800 | 14,398 | 4,800 | +0 | 4,800 |
+| skills/pr/SKILL.md | 11,289 | 3,763 | 11,289 | 3,763 | +0 | 3,800 |
+| skills/rationalize-gantt/SKILL.md | 7,936 | 2,646 | 7,936 | 2,646 | +0 | 2,700 |
+| skills/ci-audit/SKILL.md | 7,570 | 2,524 | 7,570 | 2,524 | +0 | 2,600 |
+| skills/create-defect/SKILL.md | 7,481 | 2,494 | 7,481 | 2,494 | +0 | 2,500 |
+| skills/branch-hotfix/SKILL.md | 6,034 | 2,012 | 6,321 | 2,107 | +95 | 2,200 |
+| skills/insert-defect/SKILL.md | 4,714 | 1,572 | 4,714 | 1,572 | +0 | 1,600 |
+| skills/comprehend-plan/SKILL.md | 4,575 | 1,525 | 4,575 | 1,525 | +0 | 1,600 |
+| skills/insert-story/SKILL.md | 4,037 | 1,346 | 4,037 | 1,346 | +0 | 1,400 |
+| skills/create-story/SKILL.md | 3,999 | 1,333 | 3,999 | 1,333 | +0 | 1,400 |
+| skills/push/SKILL.md | 3,005 | 1,002 | 3,005 | 1,002 | +0 | 1,100 |
+| skills/update/SKILL.md | 2,799 | 933 | 2,799 | 933 | +0 | 1,000 |
+| skills/branch-feature/SKILL.md | 2,577 | 859 | 2,577 | 859 | +0 | 900 |
+| alwaysOn.context (skill listing) | 3,697 | 1,233 | 3,697 | 1,233 | +0 | 1,300 |
+| **total (bodies)** | 247,268 | 82,429 | 249,140 | 83,053 | +624 | |
 
 ## [3.10.0] — 2026-10-06
 
