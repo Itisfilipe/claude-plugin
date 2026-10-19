@@ -18,19 +18,30 @@ name: Release tower
 # read at run time from `.claude/ds-config.json` by .github/scripts/release-tower-check.mjs.
 #
 # pull_request_target ON PURPOSE: the workflow definition, the checker and the
-# config all come from the repository's default branch, so a pull request cannot
-# edit its own gate. NEVER check out or execute the pull request head here — the
-# verdict needs only the head's NAME, its number and the labels, passed through
-# env:, never interpolated into a script (branch names and labels are user-controlled).
+# config all come from the pull request's BASE branch — the production branch —
+# so a pull request cannot edit its own gate. (That also means these two files
+# and the config take effect on production once the first release carries them
+# there; until then the check does not run.) NEVER check out or execute the pull
+# request head here — the verdict needs only the head's NAME, its number and the
+# labels, passed through env:, never interpolated into a script (branch names and
+# labels are user-controlled).
 #
 # It runs on drafts too (it costs seconds). `edited` covers a pull request
 # retargeted onto the production branch; labeled/unlabeled re-evaluate with the
-# CURRENT label set. The `closed` job re-runs the newest release-tower run of each
-# release pull request still open, so the next one in line goes green without a push.
+# CURRENT label set. Whenever the queue changes — a release pull request opened,
+# reopened, closed or retargeted onto production — the `reconcile` job re-runs the
+# newest release-tower run of every OTHER open release pull request, so the next one
+# in line goes green (or red) without a push. It runs only on a run's first attempt:
+# a re-run re-executes the same event, and must not re-run the others again. A
+# release pull request retargeted AWAY from production fires no event here: run
+# `gh workflow run release-tower.yaml` once (the manual dispatch reconciles every
+# open release pull request), or wait for the next event — the release skill checks
+# "On final" at the moment of merge regardless.
 on:
   pull_request_target:
     types: [opened, reopened, synchronize, labeled, unlabeled, edited, closed]
     branches: [{{PRODUCTION_BRANCH}}]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -38,19 +49,19 @@ permissions:
   actions: write
 
 concurrency:
-  group: release-tower-${{ github.event.pull_request.number }}
+  group: release-tower-${{ github.event.pull_request.number || 'dispatch' }}
   cancel-in-progress: true
 
 jobs:
   release-tower:
     # The job name IS the required-check context on the production branch's ruleset.
     name: release-tower
-    if: github.event.action != 'closed'
+    if: github.event_name == 'pull_request_target' && github.event.action != 'closed'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      # The default branch only (pull_request_target's default ref), and only the
-      # two files the verdict reads.
+      # The base branch only (pull_request_target's default ref), and only the two
+      # files the verdict reads.
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
@@ -69,7 +80,8 @@ jobs:
           NUMBER: ${{ github.event.pull_request.number }}
           LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
         run: |
-          gh pr list --repo "$GITHUB_REPOSITORY" --base "$BASE_REF" --state open --limit 100 \
+          # --limit matches PR_LIST_LIMIT in the checker: a list that long fails the check closed.
+          gh pr list --repo "$GITHUB_REPOSITORY" --base "$BASE_REF" --state open --limit 500 \
             --json number,headRefName > open-prs.json
           set +e
           verdict="$(node .github/scripts/release-tower-check.mjs check \
@@ -83,11 +95,13 @@ jobs:
           fi
           exit "$code"
 
-  rerun-waiting:
-    # A release pull request closed (merged or abandoned): the release behind it is
-    # now on final, so its last verdict is stale. Re-run it rather than wait for a push.
-    name: re-run the waiting releases
-    if: github.event.action == 'closed'
+  reconcile:
+    # The queue changed: the verdicts posted on the other open release pull requests
+    # may be stale. Re-run each one's newest finished run rather than wait for a push.
+    name: re-run the other release pull requests
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.run_attempt == 1 && contains(fromJSON('["opened","reopened","closed","edited"]'), github.event.action))
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -101,20 +115,25 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - name: Re-run release-tower on each release pull request still open
+      - name: Re-run release-tower on each other release pull request still open
         env:
           GH_TOKEN: ${{ github.token }}
-          CLOSED_HEAD: ${{ github.event.pull_request.head.ref }}
-          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          EVENT_HEAD: ${{ github.event.pull_request.head.ref }}
+          NUMBER: ${{ github.event.pull_request.number }}
+          BASE_REF: ${{ github.event.pull_request.base.ref || '{{PRODUCTION_BRANCH}}' }}
         run: |
-          gh pr list --repo "$GITHUB_REPOSITORY" --base "$BASE_REF" --state open --limit 100 \
+          gh pr list --repo "$GITHUB_REPOSITORY" --base "$BASE_REF" --state open --limit 500 \
             --json number,headRefName,headRefOid > open-prs.json
-          gh run list --repo "$GITHUB_REPOSITORY" --workflow release-tower.yaml --limit 100 \
-            --json databaseId,headBranch,headSha,status > runs.json
-          node .github/scripts/release-tower-check.mjs reruns --closed-head "$CLOSED_HEAD" \
-            --config .claude/ds-config.json --open-prs open-prs.json --runs runs.json \
-          | while read -r run_id; do
-              [ -n "$run_id" ] || continue
-              echo "re-running release-tower run $run_id"
-              gh api -X POST "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/rerun" >/dev/null || echo "::warning::could not re-run $run_id"
-            done
+          # The Actions API records which pull request each run belongs to; gh run list does not.
+          gh api "repos/$GITHUB_REPOSITORY/actions/workflows/release-tower.yaml/runs?event=pull_request_target&per_page=100" \
+            --jq '[.workflow_runs[] | {databaseId: .id, headSha: .head_sha, headBranch: .head_branch, status: .status, pullRequests: [.pull_requests[]?.number]}]' \
+            > runs.json
+          # The checker's output goes to a file, so its failure fails this job instead of being
+          # read into the loop as a run id.
+          node .github/scripts/release-tower-check.mjs reruns --event-head "$EVENT_HEAD" --number "${NUMBER:-0}" \
+            --config .claude/ds-config.json --open-prs open-prs.json --runs runs.json > reruns.txt
+          while read -r run_id; do
+            [ -n "$run_id" ] || continue
+            echo "re-running release-tower run $run_id"
+            gh api -X POST "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/rerun" >/dev/null || echo "::warning::could not re-run $run_id"
+          done < reruns.txt

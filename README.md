@@ -333,8 +333,9 @@ When releases are cut from more than one machine, or by more than one person or 
 before it touches the support train or cuts a release branch, waits and tells you who holds it
 when another session is releasing, keeps a heartbeat so a crashed session cannot hold the runway
 forever, can adopt a release a dead session left half-done (with your yes), and hands clearance back
-as the last act of its close-out. The clearance is a custom git ref in your repository, created
-atomically with nothing but `gh`; the status line shows the release in flight. A hotfix is never
+as the last act of its close-out. The clearance is a custom git ref in your repository, moved
+only by compare-and-swap pushes, kept alive by a keeper tied to the claiming agent, and needing
+nothing but git and `gh`; the status line shows the release in flight. A hotfix is never
 held. For a hard floor, `/devstride:setup ci` offers a `release-tower` GitHub check that passes only
 a hotfix or the oldest open release pull request — make it required on your production branch and
 even an administrator cannot land a second release beside the first. Details: the release skill's

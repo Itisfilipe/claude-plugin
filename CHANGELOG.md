@@ -27,10 +27,13 @@ for what each version component means here and how a release is cut.
   provider's `status` and re-reviews. Absent or null, nothing changes.
   - **The built-in provider** (`skills/release/scripts/clearance-github.sh`) keeps the clearance in
     the custom ref `refs/clearance/release`, pointing at a tag object whose message is the record
-    (holder, user, machine, purpose, phase, branch, pull request, takenAt, heartbeatAt). Creating
-    the ref is the atomic claim — GitHub answers 422 to every claimant but one — so there is no
-    look-then-act; the ref is neither a branch nor a tag, so it triggers no workflow and matches no
-    ruleset pattern. It needs only `gh`. It writes a local record
+    (holder, user, machine, purpose, phase, branch, pull request, takenAt, heartbeatAt). Every move
+    of the ref is a compare-and-swap through `git push --force-with-lease` — a claim expects no
+    ref, a heartbeat, adoption or stale takeover expects exactly the object it read — so there is
+    no look-then-act anywhere; the ref is neither a branch nor a tag, so it triggers no workflow
+    and matches no ruleset pattern. It needs git and `gh`. A claim starts a detached keeper that
+    re-stamps the heartbeat while the claiming agent process lives, so a long review or deploy
+    wait never reads as stale and a crashed agent goes stale on schedule. It writes a local record
     (`~/.cache/devstride/release-clearance.json`) so a hook can answer "does this session hold
     clearance?" without the network. The holder identity is the same rule as a pool lease
     (`DEVSTRIDE_LEASE_TOKEN`, else the agent session ids, else a printed token).
@@ -43,7 +46,7 @@ for what each version component means here and how a release is cut.
     when clear; the managed script marker is now v3.2.0. Transient: never asked about.
   - **`setup ci` offers a fifth mechanic, release ordering**, once clearance is set: the
     `release-tower` GitHub check from `skills/setup/references/ci-templates/` — `pull_request_target`
-    on the production branch, run from the default branch, the head never checked out — which
+    on the production branch, read from the base branch, the head never checked out — which
     passes a hotfix head, the oldest open release pull request and a pull request carrying
     `releaseTower.overrideLabel` (default `release-tower-override`), holds a later release pull
     request with "<head> (#n) is on final; this release waits" and re-runs it by itself when the

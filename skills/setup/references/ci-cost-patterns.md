@@ -204,7 +204,8 @@ the speed bump, this check is the floor. `setup ci` writes two files from
 `release.productionBranch` (the one value a trigger filter cannot read from a file), and
 `.github/scripts/release-tower-check.mjs` verbatim — as a diff, on an explicit yes, and never over
 a differing copy without showing that diff. The job is named `release-tower`; it runs
-`pull_request_target` on the production branch from the default branch, never checks out the head,
+`pull_request_target` on the production branch (so it reads its files from the base, production,
+once the first release carries them there), never checks out the head,
 and passes a hotfix head, the OLDEST open release pull request and a pull request carrying
 `releaseTower.overrideLabel`, holds a later release pull request with `<head> (#n) is on final;
 this release waits` (re-run by itself when the one ahead closes), and gives any other head the

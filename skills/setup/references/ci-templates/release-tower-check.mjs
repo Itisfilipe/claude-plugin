@@ -21,16 +21,19 @@
 //
 //   node release-tower-check.mjs check --head <ref> --base <ref> --number <n> [--labels a,b]
 //        --config <path> --open-prs <path>       one line, exit 0 ALLOWED / 1 BLOCKED / 2 usage
-//   node release-tower-check.mjs reruns --closed-head <ref> --config <path> --open-prs <path>
-//        --runs <path>                           one run id per line: the newest finished
-//                                                release-tower run of each open release pull
-//                                                request, to re-run now that a release closed
+//   node release-tower-check.mjs reruns --event-head <ref> --number <n> --config <path>
+//        --open-prs <path> --runs <path>         one run id per line: the newest finished
+//                                                release-tower run of each OTHER open release
+//                                                pull request, to re-run now that the queue changed
 //
-// `--open-prs` is `gh pr list --base <production> --state open --json number,headRefName`;
-// `--runs` is `gh run list --workflow release-tower.yaml --json databaseId,headBranch,headSha,status`.
+// `--open-prs` is `gh pr list --base <production> --state open --json number,headRefName[,headRefOid]`
+// (the check fails closed when the list is as long as its limit); `--runs` is the Actions API's
+// workflow runs as { databaseId, headSha, headBranch, status, pullRequests: [number] }.
 import { readFileSync } from 'node:fs';
 
 const DATE_TOKEN = /^<[A-Z]{2}-[A-Z]{2}-[A-Z]{2}>/;
+/** `gh pr list --limit` in the workflow; a list this long may be truncated, so the check refuses. */
+export const PR_LIST_LIMIT = 500;
 
 export function patternToRegExp(pattern) {
   let source = '';
@@ -119,20 +122,32 @@ export function checkReleaseTower({ head, base, number, labels, config, openPull
 }
 
 /**
- * After a release pull request closes, the run ids to re-run: for each open release pull request
- * into the production branch, its newest release-tower run that is not already running. Nothing
- * when the closed head was not a release head (a hotfix or a stray feature branch changes no
- * ordering). `runs` is gh's list ({ databaseId, headBranch, headSha, status }), newest first.
+ * When the queue changes — a release pull request opened, reopened, closed or retargeted — the run
+ * ids to re-run: for each OTHER open release pull request into the production branch, its newest
+ * finished release-tower run for its current head. A run is matched to a pull request by the
+ * pull-request numbers the Actions API records on it, else by its head branch (when that is not
+ * the production branch), else by its head sha — never by sha alone while a branch is known, since
+ * two release branches can share a commit. A pull request whose current head has a run still in
+ * progress is left alone: that run posts the fresh verdict. Nothing when the event's head was not
+ * a release head (a hotfix or a stray feature branch changes no ordering); an empty event head
+ * (a manual dispatch) re-settles every open release pull request. `runs` come newest first as
+ * { databaseId, headSha, headBranch, status, pullRequests: [number] }.
  */
-export function selectReruns({ closedHead, config, openPullRequests, runs }) {
-  if (!isReleaseHead(closedHead, config)) return [];
+const RUNNING = new Set(['in_progress', 'queued', 'waiting', 'pending', 'requested']);
+
+export function selectReruns({ eventHead, eventNumber, config, openPullRequests, runs }) {
+  if (eventHead && !isReleaseHead(eventHead, config)) return [];
   const ids = [];
   for (const pr of openPullRequests) {
-    if (!isReleaseHead(pr.headRefName ?? '', config)) continue;
-    const run = runs.find(
-      (r) => (r.headBranch === pr.headRefName || (pr.headRefOid && r.headSha === pr.headRefOid)) && !['in_progress', 'queued', 'waiting', 'pending', 'requested'].includes(r.status ?? '')
-    );
-    if (run && Number.isInteger(run.databaseId)) ids.push(run.databaseId);
+    if (pr.number === eventNumber || !isReleaseHead(pr.headRefName ?? '', config)) continue;
+    const byNumber = runs.filter((r) => Array.isArray(r.pullRequests) && r.pullRequests.includes(pr.number));
+    const byBranch = runs.filter((r) => r.headBranch && r.headBranch !== config.productionBranch && r.headBranch === pr.headRefName);
+    const bySha = pr.headRefOid ? runs.filter((r) => r.headSha === pr.headRefOid) : [];
+    const candidates = byNumber.length ? byNumber : byBranch.length ? byBranch : bySha;
+    const forHead = pr.headRefOid ? candidates.filter((r) => r.headSha === pr.headRefOid) : candidates;
+    if (forHead.some((r) => RUNNING.has(r.status ?? ''))) continue;
+    const run = forHead.find((r) => Number.isInteger(r.databaseId));
+    if (run) ids.push(run.databaseId);
   }
   return [...new Set(ids)];
 }
@@ -179,20 +194,27 @@ export function run(argv, read = readJson) {
       const config = readTowerConfig(read(args.config, 'config'));
       const openPullRequests = read(args['open-prs'], 'open pull requests');
       if (!Array.isArray(openPullRequests)) return { lines: ['ERROR: --open-prs must hold a JSON array'], code: 2 };
+      if (openPullRequests.length >= PR_LIST_LIMIT) {
+        return { lines: [`ERROR: ${openPullRequests.length} open pull requests into ${config.productionBranch} — the list may be truncated, so the order cannot be proven`], code: 2 };
+      }
       const verdict = checkReleaseTower({ head: args.head, base: args.base, number, labels: parseLabels(args.labels), config, openPullRequests });
       return { lines: [verdict.line], code: verdict.allowed ? 0 : 1 };
     }
     if (mode === 'reruns') {
-      const args = parseArgs(argv.slice(1), ['--closed-head', '--config', '--open-prs', '--runs']);
-      for (const key of ['closed-head', 'config', 'open-prs', 'runs']) {
+      const args = parseArgs(argv.slice(1), ['--event-head', '--number', '--config', '--open-prs', '--runs']);
+      for (const key of ['config', 'open-prs', 'runs']) {
         if (!args[key]) return { lines: [`ERROR: --${key} is required`], code: 2 };
       }
       const config = readTowerConfig(read(args.config, 'config'));
+      const openPullRequests = read(args['open-prs'], 'open pull requests');
+      const runs = read(args.runs, 'runs');
+      if (!Array.isArray(openPullRequests) || !Array.isArray(runs)) return { lines: ['ERROR: --open-prs and --runs must hold JSON arrays'], code: 2 };
       const ids = selectReruns({
-        closedHead: args['closed-head'],
+        eventHead: args['event-head'] ?? '',
+        eventNumber: args.number === undefined ? undefined : Number(args.number),
         config,
-        openPullRequests: read(args['open-prs'], 'open pull requests'),
-        runs: read(args.runs, 'runs'),
+        openPullRequests,
+        runs,
       });
       return { lines: ids.map(String), code: 0 };
     }

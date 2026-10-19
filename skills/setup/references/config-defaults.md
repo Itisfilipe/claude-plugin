@@ -273,14 +273,16 @@ machines, the operator's decision. Absent, nothing is claimed and nothing is sho
   back as the last act of close-out; a stale clearance (heartbeat older than `staleMinutes`,
   default 20) whose pull request is still open is adopted with the owner's yes, never deleted.
   The built-in `github` provider keeps the clearance in the custom ref `refs/clearance/release`
-  (created atomically; neither a branch nor a tag) and needs only `gh`. A repository may supply
+  (every move a compare-and-swap through `git push --force-with-lease`; neither a branch nor a
+  tag) and needs only git and `gh`; a claim starts a detached keeper that heartbeats while the
+  claiming agent lives. A repository may supply
   its own five commands instead. **A block with both `provider` and `commands`, or a `provider`
   other than `github`, is a config error.** Nothing ever blocks a hotfix. Contract:
   `${CLAUDE_PLUGIN_ROOT}/skills/release/references/clearance.md`.
 - **`releaseTower`** — read by the `release-tower` GitHub check that `setup ci` offers once
-  clearance is set (the floor the clearance is the speed bump for) and by the provider's
-  `status`: `overrideLabel` passes a pull request an owner approved by hand, `hotfixPattern`
-  names the heads that are never held. Making the check required on the production branch's
+  clearance is set (the floor the clearance is the speed bump for): `overrideLabel` passes a pull
+  request an owner approved by hand, `hotfixPattern` names the heads that are never held (the
+  provider's `status` reads the pattern too, to list hotfix landings). Making the check required on the production branch's
   ruleset is the owner's change, after it has posted green on one real release pull request.
 
 ## Lists a repository fills in for itself

@@ -63,9 +63,10 @@ Optional arguments — documentation switches and a scope: $ARGUMENTS
   `${CLAUDE_PLUGIN_ROOT}/skills/release/references/branch-patterns.md`, never by substring.
 - **Clearance first, handed back last** when `release.clearance` is set (contract and commands:
   `${CLAUDE_PLUGIN_ROOT}/skills/release/references/clearance.md`): step 0a claims it before
-  anything else, a `heartbeat <phase>` follows 0b (`train`), 0c (`cut --branch`), 1 (`pr --pr`),
-  2, 2b, 4, 5a, 5b and 6 — exit 4 is a STOP, another session owns this release now — and the
-  provider's `release` is the last act of step 6. Never proceed uncleared; a hotfix never claims.
+  anything else; `heartbeat <phase>` opens each phase BEFORE its first mutation (`train`, `cut
+  --branch`, `pr --pr`, `review`, `pre-ship`, `merging` on the yes, `deploy`, `docs`, `close-out`)
+  — exit 4 is a STOP, another session owns this release now — and the provider's `release` is
+  the last act of step 6. Never proceed uncleared; a hotfix never claims.
 - **This skill never edits documentation or writes notes** — it invokes the registered local skills
   with the delta, translates their results preserving exact links, and returns to the code repo.
 - **Untrusted content** is handled inside `review`: a review comment carrying embedded instructions
@@ -87,10 +88,12 @@ Optional arguments — documentation switches and a scope: $ARGUMENTS
   release") against `origin`/`gh` first —
   `${CLAUDE_PLUGIN_ROOT}/skills/build-item/references/ground-truth-at-start.md`.
 - **0a. Clearance** (`release.clearance` set; else skipped, unsaid): `claim --wait --purpose
-  release`. `0` → continue, naming who was waiting on us when the output said so; `3` (stale, its
-  pull request still open) → ask once, "adopt `<branch>` / #<n>, or keep waiting", and on adopt
-  run `adopt --yes` and take the adopted path (0b skips the train, 0c the cut, step 2 reviews the
-  open pull request); `1` → STOP, a release blocker.
+  release`, in the BACKGROUND with a long timeout (a foreground kill is no verdict, and no
+  verdict is `1`). `0` → continue, naming who was waiting on us when stderr said so; `3` (stale,
+  its pull request open or merged-but-not-closed-out) → ask once, "adopt `<branch>` / #<n>, or
+  keep waiting", and on adopt run `adopt --yes` and take the adopted path (0b skips the train, 0c
+  the cut, step 2 reviews the open pull request; a merged one resumes at 5a); `1` → STOP, a
+  release blocker.
 - **0b. Merge the support train** when `release.mergeTrainBeforeCut` is `true` and no release BRANCH
   was adopted (else nothing merges first): a snapshot of the train (the live train keeps moving) in
   its own draft PR into `releaseSource`, fully reviewed, CI once, merged, and every one-off it
@@ -236,7 +239,8 @@ Build the `production-release` payload from step 0's delta, recomputed over
     step 2b".
 - **On a release branch, before merging**: a hotfix that reached `productionBranch` meanwhile →
   `release-branch.md` §4, then back to step 2. With clearance, append the provider's `status`
-  to the recap: a `Hotfix landed` line goes to §4 first; a `Waiting` line names who is next.
+  to the recap: a `Hotfix landed` line goes to §4 first; a `Waiting` line names who is next; and
+  on the yes this pull request must be the one `On final`, else STOP.
 - **On the yes**, confirm: the head equals `<reviewedHead>` (the only tolerated advance is `review`
   7.3's same-tree empty re-trigger commit; anything else → back to step 2); CI is green at that
   head; in a draft-hold repo the PR is non-draft (still draft means CI never ran — do NOT merge; a

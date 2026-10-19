@@ -307,7 +307,7 @@ Neither set → **N/A**, not a failure: the release skill's docs pass reports it
   reports `not configured`.
 - **`release.clearance`** — null → N/A. Both `provider` and `commands`, a `provider` other than
   `github`, or a missing verb → FAIL. `provider: github` → run its `status` once (read-only),
-  report the line; `UNKNOWN` FAILs naming the `gh` error. No `.github/workflows/release-tower.yaml`
+  report the line; `UNKNOWN` FAILs naming the cause. No `.github/workflows/release-tower.yaml`
   beside it → INFO: `/devstride:setup ci` offers the floor. Contract:
   `${CLAUDE_PLUGIN_ROOT}/skills/release/references/clearance.md`.
 - **Say the release-notes default** — notes only on `--release-notes`; the loop never decides a

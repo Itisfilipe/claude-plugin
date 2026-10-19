@@ -261,9 +261,12 @@ K7. One matching rule for `protectedBranches`, `releaseBranchPattern` and
 K8. With `release.clearance` set, `release` CLAIMS clearance before the train or the cut (step 0a),
     heartbeats each phase (exit 4 = another session owns the release: STOP), and hands it back as
     the LAST act of close-out — after the sync pull request and the branch deletion — so a failed
-    post-deploy check keeps it for the retry. The claim is one atomic ref creation (GitHub's 422
-    is the BUSY), never a look-then-act; a stale clearance with an open pull request is ADOPTED
-    with the owner's yes, never deleted; a hotfix NEVER claims and is never held; hotfix landings
+    post-deploy check keeps it for the retry. Every move of the clearance ref is a compare-and-swap
+    (`git push --force-with-lease`), never a look-then-act — the claim, the heartbeat, the stale
+    takeover and the release alike; liveness is a detached keeper's, tied to the claiming agent
+    process; a stale clearance whose pull request is open, or merged but not closed out, is
+    ADOPTED with the owner's yes, never taken silently; an unreadable record is cleared only by
+    `release --force`; a hotfix NEVER claims and is never held; hotfix landings
     are DERIVED from GitHub, not recorded. The `release-tower` check is the floor, the commands
     the speed bump. Contract: `skills/release/references/clearance.md`.
 

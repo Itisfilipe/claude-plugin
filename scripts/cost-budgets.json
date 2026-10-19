@@ -20,7 +20,7 @@
     "push": 1100,
     "rationalize-gantt": 2700,
     "rebalance": 5800,
-    "release": 7700,
+    "release": 7800,
     "review": 8000,
     "setup": 10700,
     "ultracode-build": 4800,
@@ -48,7 +48,7 @@
     "skills/rationalize-gantt/references/auto-scheduler-off.md": 900,
     "skills/rebalance/references/recoverable-write-order.md": 1000,
     "skills/release/references/branch-patterns.md": 1600,
-    "skills/release/references/clearance.md": 3200,
+    "skills/release/references/clearance.md": 4200,
     "skills/release/references/docs-hooks.md": 2700,
     "skills/release/references/post-deploy-check.md": 1100,
     "skills/release/references/release-branch.md": 4400,
@@ -72,7 +72,7 @@
     "skills/setup/references/interview-rationale.md": 1900,
     "skills/setup/references/review-engines.md": 2700,
     "skills/setup/references/statusline-segments.md": 2100,
-    "skills/setup/references/validation-checklist.md": 5200,
+    "skills/setup/references/validation-checklist.md": 5600,
     "skills/ultracode-build/references/engineering-economy.md": 1400,
     "skills/ultracode-build/references/mandatory-lenses.md": 1800,
     "skills/ultracode-build/references/review-fanout.md": 2200
@@ -143,7 +143,7 @@
       ]
     },
     "productionReleaseGate": {
-      "budget": 62500,
+      "budget": 63500,
       "files": [
         "skills/release/SKILL.md",
         "skills/build-item/references/plain-language-output.md",

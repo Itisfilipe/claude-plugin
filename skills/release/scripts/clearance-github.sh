@@ -2,35 +2,51 @@
 # skills/release/scripts/clearance-github.sh — the built-in release clearance provider.
 #
 # One cleared release at a time, for every machine and account that releases this repository,
-# with nothing but `gh`. The clearance is a custom git ref in the repository (default
+# with nothing but git and `gh`. The clearance is a custom git ref in the repository (default
 # `refs/clearance/release`) pointing at an annotated tag object whose message is the clearance
-# record as JSON. Creating the ref is the atomic claim: GitHub answers 422 "Reference already
-# exists" to every claimant but one, so there is no look-then-act. The ref is neither a branch nor
-# a tag, so it triggers no workflow, appears in no branch or tag list, and no ruleset pattern
-# matches it. The contract every command honours — exit codes, first lines, the local record —
-# is skills/release/references/clearance.md, which a repository-supplied provider follows too.
+# record as JSON. Every move of that ref is a compare-and-swap through `git push
+# --force-with-lease=<ref>:<expected>`: a claim expects the ref to be ABSENT, a heartbeat, an
+# adoption or a stale takeover expects the exact object it read, and the server rejects every
+# caller whose expectation is stale — so there is no look-then-act anywhere, not even on the
+# stale path. The ref is neither a branch nor a tag, so it triggers no workflow, appears in no
+# branch or tag list, and no ruleset pattern matches it. The contract every command honours —
+# exit codes, first lines, the local record — is skills/release/references/clearance.md, which a
+# repository-supplied provider follows too.
 #
 #   claim     [--wait] [--purpose <text>]      0 CLEARED · 2 BUSY · 3 STALE (pull request open) · 1 error
 #   status    [--short] [--json]               0 when the ref was read (CLEAR or held) · 1 unreadable
 #   heartbeat <phase> [--branch b] [--pr n]    0 · 4 NOT HOLDER
 #   release   [--force]                        0 · 4 NOT HOLDER
 #   adopt     --yes                            0 ADOPTED · 2 not stale · 4 nothing to adopt
+#   keeper    (internal)                       the detached heartbeat a claim starts; see below
+#
+# LIVENESS. A clearance is stale when its heartbeat is older than staleMinutes (default 20). A
+# release skill's phases run far longer than that with nothing to say, so `claim` and `adopt`
+# start a detached KEEPER that re-stamps the heartbeat every staleMinutes/3 for as long as the
+# agent process that claimed (the first non-shell ancestor of the claiming command) is alive and
+# the local record still names this holder; `release` stops it. A crashed or killed agent takes
+# its keeper with it, and the clearance goes stale on schedule. The skill's own `heartbeat
+# <phase>` calls record progress; they are not what keeps the clearance alive.
 #
 # Configuration comes from the nearest `.claude/ds-config.json` above the working directory:
 # release.clearance.{ref, staleMinutes, waitMinutes}, release.productionBranch,
 # release.releaseSource, release.releaseBranchPattern and releaseTower.hotfixPattern. Environment
 # overrides exist for tests and for a wrapper: CLEARANCE_REF, CLEARANCE_STALE_MINUTES,
 # CLEARANCE_WAIT_MINUTES, CLEARANCE_POLL_SECONDS (default 60), CLEARANCE_RECORD (the local record
-# path), CLEARANCE_REPO (owner/name), CLEARANCE_PRODUCTION_BRANCH, CLEARANCE_RELEASE_PATTERN,
-# CLEARANCE_HOTFIX_PATTERN, CLEARANCE_NOW (an ISO instant, tests only).
+# path), CLEARANCE_REPO (owner/name), CLEARANCE_REMOTE (default origin),
+# CLEARANCE_PRODUCTION_BRANCH, CLEARANCE_RELEASE_PATTERN, CLEARANCE_HOTFIX_PATTERN, CLEARANCE_NOW
+# (an ISO instant, tests only), CLEARANCE_NO_KEEPER=1, CLEARANCE_OWNER_PID, CLEARANCE_KEEPER_SECONDS.
 #
 # Runs under macOS /bin/bash 3.2: bash only hands over to python3, the toolchain the plugin's
-# hooks already assume. `gh` must be signed in with contents write on the repository.
+# hooks already assume. Needs a checkout with the remote (`origin`) that the repository's pushes
+# use, and `gh` signed in (pull-request facts and the user name).
 set -u
 command -v python3 >/dev/null 2>&1 || { echo "clearance: python3 is required" >&2; exit 1; }
 command -v gh >/dev/null 2>&1 || { echo "clearance: gh is required (https://cli.github.com)" >&2; exit 1; }
+command -v git >/dev/null 2>&1 || { echo "clearance: git is required" >&2; exit 1; }
+CLEARANCE_SELF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"; export CLEARANCE_SELF
 exec python3 - "$@" <<'PY'
-import json, os, re, secrets, socket, subprocess, sys, time
+import json, os, re, secrets, signal, socket, subprocess, sys, time
 from datetime import datetime, timezone
 
 RECORD_VERSION = 1
@@ -38,11 +54,13 @@ DEFAULT_REF = "refs/clearance/release"
 DEFAULT_STALE_MINUTES = 20
 DEFAULT_WAIT_MINUTES = 180
 DEFAULT_HOTFIX_PATTERN = "*/hotfix/**"
-DEFAULT_RELEASE_PATTERN = "release/<YY-MM-DD>[-n]"
+PR_LIMIT = 200  # a list this long is reported as truncated rather than trusted
+SHELLS = {"sh", "bash", "zsh", "dash", "fish", "ksh", "python3", "python", "perl", "env", "timeout",
+          "nohup", "script", "sandbox-exec", "caffeinate", "sudo", "su", "login", "tmux", "screen"}
 
 
 def fail(message, code=1):
-    print("ERROR: " + message)
+    print("ERROR: " + message, file=sys.stderr)
     sys.exit(code)
 
 
@@ -74,9 +92,7 @@ def iso(value):
 def age_text(since, at):
     if since is None:
         return "unknown"
-    seconds = int((at - since).total_seconds())
-    if seconds < 0:
-        seconds = 0
+    seconds = max(0, int((at - since).total_seconds()))
     if seconds < 60:
         return "%d s ago" % seconds
     if seconds < 3600:
@@ -109,9 +125,12 @@ def load_config():
         if os.path.isfile(candidate):
             try:
                 with open(candidate) as handle:
-                    return json.load(handle)
-            except (OSError, ValueError):
-                return {}
+                    loaded = json.load(handle)
+            except (OSError, ValueError) as error:
+                fail("%s exists but cannot be read as JSON (%s) — fix it; the defaults would name a different ref" % (candidate, error))
+            if not isinstance(loaded, dict):
+                fail("%s is not a JSON object" % candidate)
+            return loaded
         parent = os.path.dirname(here)
         if parent == here:
             return {}
@@ -144,10 +163,11 @@ def setting(env_name, config_value, default, kind=str):
 REF = setting("CLEARANCE_REF", CLEARANCE.get("ref"), DEFAULT_REF)
 if not REF.startswith("refs/") or REF.count("/") < 2:
     fail("release.clearance.ref must be a fully qualified ref such as refs/clearance/release")
-REF_PATH = REF[len("refs/"):]  # what the git refs API takes after /git/ref/ and /git/refs/
+REMOTE = setting("CLEARANCE_REMOTE", None, "origin")
 STALE_MINUTES = setting("CLEARANCE_STALE_MINUTES", CLEARANCE.get("staleMinutes"), DEFAULT_STALE_MINUTES, int)
 WAIT_MINUTES = setting("CLEARANCE_WAIT_MINUTES", CLEARANCE.get("waitMinutes"), DEFAULT_WAIT_MINUTES, int)
 POLL_SECONDS = setting("CLEARANCE_POLL_SECONDS", None, 60, int)
+KEEPER_SECONDS = setting("CLEARANCE_KEEPER_SECONDS", None, max(60, STALE_MINUTES * 60 // 3), int)
 PRODUCTION = setting("CLEARANCE_PRODUCTION_BRANCH", RELEASE.get("productionBranch"), "master")
 RELEASE_SOURCE = RELEASE.get("releaseSource") or "develop"
 RELEASE_PATTERN = setting("CLEARANCE_RELEASE_PATTERN", RELEASE.get("releaseBranchPattern"), "")
@@ -167,30 +187,32 @@ def is_hotfix_head(name):
     return bool(pattern_regex(HOTFIX_PATTERN).match(name))
 
 
-# ── gh ──
-class GhError(Exception):
-    def __init__(self, status, text):
+# ── tools ──
+class ToolError(Exception):
+    def __init__(self, text, rejected=False):
         super().__init__(text)
-        self.status = status
         self.text = text
+        self.rejected = rejected
 
 
-def gh(args, body=None):
-    """Run gh; on failure raise GhError carrying the HTTP status gh printed."""
-    proc = subprocess.run(["gh", *args], input=body, capture_output=True, text=True)
+def run(args, body=None):
+    proc = subprocess.run(args, input=body, capture_output=True, text=True)
     if proc.returncode == 0:
         return proc.stdout
     text = (proc.stderr or proc.stdout or "").strip()
-    match = re.search(r"HTTP (\d{3})", text)
-    raise GhError(int(match.group(1)) if match else 0, text)
+    raise ToolError(text or "%s failed" % args[0])
 
 
-def gh_json(args, body=None):
-    out = gh(args, body)
+def gh(args):
+    return run(["gh", *args])
+
+
+def gh_json(args):
+    out = gh(args)
     try:
         return json.loads(out) if out.strip() else None
     except ValueError:
-        raise GhError(0, "gh returned something that is not JSON: " + out[:200])
+        raise ToolError("gh returned something that is not JSON: " + out[:200])
 
 
 _repo = None
@@ -208,7 +230,7 @@ def repo():
 def gh_user():
     try:
         return gh(["api", "user", "--jq", ".login"]).strip() or "unknown"
-    except GhError:
+    except ToolError:
         return "unknown"
 
 
@@ -229,43 +251,48 @@ def holder():
     return "token:" + secrets.token_hex(12), True
 
 
-# ── the ref and its record ──
+# ── the ref and its record, through git ──
+def remote_sha(ref):
+    """The sha the remote holds for a ref, or None when the ref does not exist. Raises when the
+    remote cannot be asked (not signed in, no network, no such remote): never read as clear."""
+    proc = subprocess.run(["git", "ls-remote", "--exit-code", REMOTE, ref], capture_output=True, text=True)
+    if proc.returncode == 2:
+        return None
+    if proc.returncode != 0:
+        raise ToolError((proc.stderr or proc.stdout).strip() or "git ls-remote failed")
+    line = proc.stdout.strip().splitlines()
+    return line[0].split()[0] if line else None
+
+
 def read_record():
-    """The clearance record, or None when the ref does not exist. Raises GhError when unreadable."""
+    """The clearance record (with its object sha as `_sha`), or None when the ref is absent."""
+    sha = remote_sha(REF)
+    if sha is None:
+        return None
+    # Bring the object here (fetching the ref is always allowed; a bare sha may not be).
+    have = subprocess.run(["git", "cat-file", "-e", sha], capture_output=True).returncode == 0
+    if not have:
+        run(["git", "fetch", "-q", REMOTE, REF])
+        if subprocess.run(["git", "cat-file", "-e", sha], capture_output=True).returncode != 0:
+            # The ref moved between the two calls: read what we fetched instead.
+            sha = run(["git", "rev-parse", "FETCH_HEAD"]).strip()
+    raw = run(["git", "cat-file", "-p", sha])
+    message = raw.split("\n\n", 1)[1] if "\n\n" in raw else ""
     try:
-        ref = gh_json(["api", "repos/%s/git/ref/%s" % (repo(), REF_PATH)])
-    except GhError as error:
-        if error.status == 404:
-            return None
-        raise
-    sha = ((ref or {}).get("object") or {}).get("sha")
-    if not sha:
-        raise GhError(0, "the clearance ref has no object")
-    tag = gh_json(["api", "repos/%s/git/tags/%s" % (repo(), sha)])
-    try:
-        record = json.loads((tag or {}).get("message") or "")
+        record = json.loads(message)
     except ValueError:
-        record = {}
-    if not isinstance(record, dict):
-        record = {}
+        record = None
+    if not isinstance(record, dict) or not isinstance(record.get("holder"), str) or not record["holder"] \
+            or parse_iso(record.get("takenAt")) is None:
+        # Something that is not a clearance record holds the ref. Nobody may take it over
+        # silently: it is reported, and only the owner's `release --force` clears it.
+        record = {"_invalid": True}
     record["_sha"] = sha
     return record
 
 
-def write_tag(record):
-    """A new tag object carrying the record; returns its sha."""
-    clean = {k: v for k, v in record.items() if not k.startswith("_")}
-    body = json.dumps({
-        "tag": "release-clearance",
-        "message": json.dumps(clean, sort_keys=True),
-        "object": production_head(),
-        "type": "commit",
-    })
-    created = gh_json(["api", "-X", "POST", "repos/%s/git/tags" % repo(), "--input", "-"], body)
-    sha = (created or {}).get("sha")
-    if not sha:
-        raise GhError(0, "creating the clearance tag object returned no sha")
-    return sha
+def unreadable(record):
+    return bool(record) and record.get("_invalid") is True
 
 
 _prod_head = None
@@ -274,39 +301,53 @@ _prod_head = None
 def production_head():
     global _prod_head
     if _prod_head is None:
-        ref = gh_json(["api", "repos/%s/git/ref/heads/%s" % (repo(), PRODUCTION)])
-        _prod_head = ((ref or {}).get("object") or {}).get("sha") or ""
+        _prod_head = remote_sha("refs/heads/" + PRODUCTION)
         if not _prod_head:
-            raise GhError(0, "could not read the head of %s" % PRODUCTION)
+            raise ToolError("could not read the head of %s on %s" % (PRODUCTION, REMOTE))
     return _prod_head
 
 
-def create_ref(sha):
-    """True when this call created the ref; False when it already existed (the atomic BUSY)."""
-    try:
-        gh(["api", "-X", "POST", "repos/%s/git/refs" % repo(), "--input", "-"],
-           json.dumps({"ref": REF, "sha": sha}))
+def write_tag(record):
+    """A new tag object carrying the record, in the local object store; returns its sha."""
+    clean = {k: v for k, v in record.items() if not k.startswith("_")}
+    body = "object %s\ntype commit\ntag release-clearance\ntagger release-clearance <release-clearance@devstride.plugin> %d +0000\n\n%s\n" % (
+        production_head(), int(time.time()), json.dumps(clean, sort_keys=True))
+    return run(["git", "hash-object", "-t", "tag", "-w", "--stdin"], body).strip()
+
+
+def push_ref(new_sha, expected):
+    """Move the ref to new_sha (or delete it when new_sha is None) only if the remote still has
+    `expected` ('' = absent). Returns True; raises ToolError(rejected=True) when the lease failed."""
+    spec = ("%s:%s" % (new_sha, REF)) if new_sha else (":" + REF)
+    proc = subprocess.run(["git", "push", "-q", REMOTE, spec, "--force-with-lease=%s:%s" % (REF, expected or "")],
+                          capture_output=True, text=True)
+    if proc.returncode == 0:
         return True
-    except GhError as error:
-        if error.status == 422 and "already exists" in error.text.lower():
-            return False
-        if error.status == 403:
-            raise GhError(403, "creating %s was refused (HTTP 403): a repository ruleset that restricts "
-                               "ref creation blocks the clearance ref — see clearance.md" % REF)
-        raise
+    text = (proc.stderr or proc.stdout or "").strip()
+    if "rejected" in text or "stale info" in text or "declined" in text:
+        raise ToolError(text, rejected=True)
+    raise refusal(text)
 
 
-def move_ref(sha):
-    gh(["api", "-X", "PATCH", "repos/%s/git/refs/%s" % (repo(), REF_PATH), "--input", "-"],
-       json.dumps({"sha": sha, "force": True}))
+def refusal(text):
+    """The error for a push the server refused: its own words first, and the ruleset finding when
+    they point at one."""
+    first = text.splitlines()[0] if text else "git push failed"
+    if "403" in text or "protected" in text.lower() or "rule" in text.lower():
+        return ToolError("%s — pushing %s was refused; a repository ruleset that restricts ref creation blocks "
+                         "the clearance ref (clearance.md)" % (first, REF))
+    return ToolError(first)
 
 
-def delete_ref():
-    try:
-        gh(["api", "-X", "DELETE", "repos/%s/git/refs/%s" % (repo(), REF_PATH)])
-    except GhError as error:
-        if error.status != 404 and "does not exist" not in error.text.lower():
-            raise
+def lost_race(error, expected, stuck):
+    """A rejected compare-and-swap is a lost race only when the ref MOVED. The same ref after three
+    rejections is the server refusing the push (a hook, a ruleset): raise it instead of retrying
+    forever. Returns the new stuck count."""
+    if remote_sha(REF) != expected:
+        return 0
+    if stuck + 1 >= 3:
+        raise refusal(error.text)
+    return stuck + 1
 
 
 def is_stale(record, at):
@@ -316,19 +357,30 @@ def is_stale(record, at):
 
 def pr_state(number):
     try:
-        return gh(["pr", "view", str(number), "--json", "state", "--jq", ".state"]).strip().upper()
-    except GhError:
+        return gh(["pr", "view", str(number), "--repo", repo(), "--json", "state", "--jq", ".state"]).strip().upper()
+    except ToolError:
         return "UNKNOWN"
 
 
 # ── the local record (what a hook reads to answer "does THIS session hold clearance?") ──
-def write_local(record):
+def read_local():
+    try:
+        with open(RECORD_PATH) as handle:
+            value = json.load(handle)
+        return value if isinstance(value, dict) else None
+    except (OSError, ValueError):
+        return None
+
+
+def write_local(record, keeper_pid=None):
     directory = os.path.dirname(RECORD_PATH)
     os.makedirs(directory, exist_ok=True)
+    current = read_local() or {}
     payload = {
         "repo": repo(), "holder": record.get("holder"), "user": record.get("user"),
         "machine": record.get("machine"), "branch": record.get("branch"), "pr": record.get("pr"),
         "takenAt": record.get("takenAt"),
+        "keeperPid": keeper_pid if keeper_pid is not None else (current.get("keeperPid") if current.get("repo") == repo() else None),
     }
     tmp = RECORD_PATH + ".tmp"
     fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
@@ -338,22 +390,111 @@ def write_local(record):
     os.replace(tmp, RECORD_PATH)
 
 
-def remove_local():
+def remove_local(me=None):
+    """Remove this repository's record when it names `me` (None: whoever's it is — the owner's
+    --force, or a record with no holder), stopping its keeper; another holder's stays."""
+    current = read_local()
+    if current is None or current.get("repo") not in (None, repo()):
+        return
+    if me is not None and current.get("holder") not in (None, me):
+        return
+    stop_keeper(current)
     try:
-        with open(RECORD_PATH) as handle:
-            current = json.load(handle)
-    except (OSError, ValueError):
-        current = None
-    # Only this repository's record is ours to remove.
-    if current is None or current.get("repo") in (None, repo()):
+        os.remove(RECORD_PATH)
+    except OSError:
+        pass
+
+
+def lost_holding(me):
+    """This session no longer holds the clearance: a local record naming it is now wrong."""
+    remove_local(me)
+
+
+# ── the keeper ──
+def alive(pid):
+    try:
+        os.kill(pid, 0)
+        return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+
+
+def owner_pid():
+    """The agent process that is running this command: the first ancestor that is not a shell
+    or a wrapper. Its death is what makes a clearance go stale."""
+    forced = os.environ.get("CLEARANCE_OWNER_PID")
+    if forced:
+        return int(forced) if forced.isdigit() else None
+    pid = os.getppid()
+    for _ in range(12):
+        if pid <= 1:
+            return None
         try:
-            os.remove(RECORD_PATH)
+            out = subprocess.run(["ps", "-o", "ppid=,comm=", "-p", str(pid)], capture_output=True, text=True).stdout.split()
+        except OSError:
+            return None
+        if len(out) < 2:
+            return None
+        parent, comm = out[0], os.path.basename(out[1])
+        if comm not in SHELLS:
+            return pid
+        pid = int(parent) if parent.isdigit() else 0
+    return None
+
+
+def start_keeper(me):
+    """Detach a keeper for this holder. Returns its pid, or None (and says why) when none runs."""
+    if os.environ.get("CLEARANCE_NO_KEEPER"):
+        return None
+    owner = owner_pid()
+    if owner is None:
+        print("no keeper: the owning process could not be found — run heartbeat yourself at least every %d minutes" % STALE_MINUTES)
+        return None
+    env = dict(os.environ, CLEARANCE_KEEPER_HOLDER=me, CLEARANCE_KEEPER_OWNER=str(owner))
+    env.pop("CLEARANCE_NOW", None)
+    proc = subprocess.Popen(["bash", os.environ["CLEARANCE_SELF"], "keeper"], env=env, cwd=os.getcwd(),
+                            stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                            start_new_session=True)
+    return proc.pid
+
+
+def stop_keeper(local):
+    pid = (local or {}).get("keeperPid")
+    if isinstance(pid, int) and pid > 1 and alive(pid):
+        try:
+            os.kill(pid, signal.SIGTERM)
         except OSError:
             pass
 
 
+def cmd_keeper(_args):
+    me = os.environ.get("CLEARANCE_KEEPER_HOLDER")
+    owner = int(os.environ.get("CLEARANCE_KEEPER_OWNER") or "0")
+    if not me or owner <= 1:
+        return 1
+    while True:
+        time.sleep(KEEPER_SECONDS)
+        if not alive(owner):
+            return 0
+        local = read_local()
+        if not local or local.get("repo") != repo() or local.get("holder") != me:
+            return 0
+        try:
+            record = read_record()
+            if record is None or unreadable(record) or record.get("holder") != me:
+                return 0
+            record["heartbeatAt"] = iso(now())
+            push_ref(write_tag(record), record["_sha"])
+        except ToolError:
+            continue  # a failed stamp is retried next tick; the owner's death still ends it
+
+
 # ── output lines ──
 def describe(record, at):
+    if unreadable(record):
+        return "UNREADABLE record at %s (not a clearance record) — the owner clears it with release --force" % record["_sha"][:12]
     beat = parse_iso(record.get("heartbeatAt") or record.get("takenAt"))
     line = "held by %s on %s since %s, phase %s, heartbeat %s" % (
         record.get("user") or "?", record.get("machine") or "?", record.get("takenAt") or "?",
@@ -370,59 +511,114 @@ def describe(record, at):
     return line
 
 
+def option(args, name):
+    if name in args:
+        i = args.index(name)
+        if i + 1 >= len(args):
+            fail("%s needs a value" % name, 1)
+        return args[i + 1]
+    return None
+
+
+def pr_number(value):
+    text = str(value).lstrip("#").strip()
+    return int(text) if text.isdigit() else text
+
+
 # ── commands ──
+def progress(line):
+    print(line, file=sys.stderr, flush=True)
+
+
+def renew(record, me, at):
+    """Re-stamp a record this session holds (a claim or adoption by the holder itself). Returns the
+    rejecting error when the lease failed, None when the stamp landed."""
+    record["heartbeatAt"] = iso(at)
+    try:
+        push_ref(write_tag(record), record["_sha"])
+    except ToolError as error:
+        if not error.rejected:
+            raise
+        return error
+    return None
+
+
+def keeper_for(me):
+    local = read_local() or {}
+    keeper = local.get("keeperPid") if local.get("repo") == repo() else None
+    return keeper if isinstance(keeper, int) and alive(keeper) else start_keeper(me)
+
+
 def cmd_claim(args):
     wait = "--wait" in args
     purpose = option(args, "--purpose") or "release"
     me, print_token = holder()
     if print_token:
-        print("holder token %s — export it as DEVSTRIDE_LEASE_TOKEN for heartbeat and release" % me)
+        progress("holder token %s — export it as DEVSTRIDE_LEASE_TOKEN for heartbeat and release" % me)
     user = None
     deadline = time.monotonic() + WAIT_MINUTES * 60
+    stuck = 0
     while True:
         at = now()
-        # Read first, so a BUSY poll costs one read and leaves no tag object behind; the claim
-        # itself is still the ref creation, which only one caller can win.
         current = read_record()
-        if current is None:
-            if user is None:
-                user = gh_user()
+        if unreadable(current):
+            print("ERROR: " + describe(current, at))
+            return 1
+        if user is None:
+            user = gh_user()
+        if current is None or (is_stale(current, at) and current.get("holder") != me):
+            if current is not None:
+                number = current.get("pr")
+                state = pr_state(number) if number else "NONE"
+                if state == "UNKNOWN":
+                    print("ERROR: the state of pull request #%s could not be read, so the stale clearance (%s) "
+                          "cannot be judged" % (number, describe(current, at)))
+                    return 1
+                if state in ("OPEN", "MERGED"):
+                    why = "still open" if state == "OPEN" else "merged but the release was never closed out"
+                    print("STALE %s — pull request #%s %s — adopt or wait" % (describe(current, at), number, why))
+                    return 3
             record = {
                 "v": RECORD_VERSION, "repo": repo(), "holder": me, "user": user, "machine": socket.gethostname(),
                 "purpose": purpose, "phase": "claimed", "branch": None, "pr": None,
                 "takenAt": iso(at), "heartbeatAt": iso(at),
             }
-            if create_ref(write_tag(record)):
-                write_local(record)
-                print("CLEARED %s %s" % (me, record["takenAt"]))
-                return 0
-            continue  # lost the race: read who won
-        if current.get("holder") == me:
-            write_local(current)
-            print("CLEARED %s %s (already held by this session)" % (me, current.get("takenAt")))
-            return 0
-        if is_stale(current, at):
-            number = current.get("pr")
-            state = pr_state(number) if number else "NONE"
-            if state in ("MERGED", "CLOSED", "NONE"):
-                print("stale clearance reclaimed (%s; pull request %s)" % (
-                    describe(current, at), ("#%s %s" % (number, state.lower())) if number else "never opened"))
-                delete_ref()
+            try:
+                # Absent → the lease expects no ref; stale → the lease expects exactly the stale
+                # object. Either way the server decides, and a loser reads who won.
+                push_ref(write_tag(record), None if current is None else current["_sha"])
+            except ToolError as error:
+                if not error.rejected:
+                    raise
+                stuck = lost_race(error, None if current is None else current["_sha"], stuck)
                 continue
-            print("STALE %s — pull request #%s %s — adopt or wait" % (
-                describe(current, at), number, "still open" if state == "OPEN" else "state " + state.lower()))
-            return 3
-        print("BUSY " + describe(current, at), flush=True)
+            if current is not None:
+                progress("stale clearance taken over (%s; pull request %s)" % (
+                    describe(current, at), ("#%s %s" % (number, state.lower())) if number else "never opened"))
+            write_local(record, start_keeper(me))
+            print("CLEARED %s %s" % (me, record["takenAt"]))
+            return 0
+        if current.get("holder") == me:
+            rejected = renew(current, me, at)
+            if rejected is not None:
+                stuck = lost_race(rejected, current["_sha"], stuck)
+                continue  # moved under us: read again
+            write_local(current, keeper_for(me))
+            print("CLEARED %s %s (already held by this session; heartbeat renewed)" % (me, current.get("takenAt")))
+            return 0
+        line = "BUSY " + describe(current, at)
         if not wait or time.monotonic() >= deadline:
+            print(line)
             return 2
+        progress(line)
         time.sleep(POLL_SECONDS)
 
 
 def list_prs(state):
     fields = "number,headRefName,isDraft,createdAt,mergedAt"
     try:
-        rows = gh_json(["pr", "list", "--base", PRODUCTION, "--state", state, "--limit", "50", "--json", fields]) or []
-    except GhError:
+        rows = gh_json(["pr", "list", "--repo", repo(), "--base", PRODUCTION, "--state", state, "--limit", str(PR_LIMIT), "--json", fields]) or []
+    except ToolError:
         return None
     return [row for row in rows if isinstance(row, dict)]
 
@@ -431,7 +627,7 @@ def derive(record, at):
     """What GitHub says about release pull requests and hotfix landings — never recorded."""
     out = {"onFinal": None, "waiting": [], "hotfixesLanded": [], "derived": True}
     open_prs = list_prs("open")
-    if open_prs is None:
+    if open_prs is None or len(open_prs) >= PR_LIMIT:
         out["derived"] = False
         return out
     releases = sorted((p for p in open_prs if is_release_head(p.get("headRefName", ""))), key=lambda p: p["number"])
@@ -442,7 +638,7 @@ def derive(record, at):
     if record:
         since = parse_iso(record.get("takenAt"))
         merged = list_prs("merged")
-        if merged is None:
+        if merged is None or len(merged) >= PR_LIMIT:
             out["derived"] = False
         else:
             for p in merged:
@@ -456,13 +652,18 @@ def cmd_status(args):
     at = now()
     try:
         record = read_record()
-    except GhError as error:
+    except ToolError as error:
+        first = error.text.splitlines()[0] if error.text else "unreadable"
         if "--json" in args:
-            print(json.dumps({"state": "unknown", "error": error.text}))
-        elif "--short" in args:
-            pass
-        else:
-            print("UNKNOWN (gh: %s)" % error.text.splitlines()[0] if error.text else "UNKNOWN")
+            print(json.dumps({"state": "unknown", "error": first}))
+        elif "--short" not in args:
+            print("UNKNOWN (%s)" % first)
+        return 1
+    if unreadable(record):
+        if "--json" in args:
+            print(json.dumps({"state": "unknown", "error": describe(record, at), "ref": REF, "sha": record["_sha"]}))
+        elif "--short" not in args:
+            print("UNKNOWN (%s)" % describe(record, at))
         return 1
     stale = bool(record) and is_stale(record, at)
     if "--short" in args:
@@ -491,15 +692,6 @@ def cmd_status(args):
     return 0
 
 
-def option(args, name):
-    if name in args:
-        i = args.index(name)
-        if i + 1 >= len(args):
-            fail("%s needs a value" % name, 1)
-        return args[i + 1]
-    return None
-
-
 def cmd_heartbeat(args):
     if not args or args[0].startswith("--"):
         fail("heartbeat needs a phase as its first argument", 1)
@@ -509,10 +701,11 @@ def cmd_heartbeat(args):
     record = read_record()
     if record is None:
         print("NOT HOLDER: no clearance is held (claim first)")
-        remove_local()
+        lost_holding(me)
         return 4
-    if record.get("holder") != me:
+    if unreadable(record) or record.get("holder") != me:
         print("NOT HOLDER: " + describe(record, at))
+        lost_holding(me)
         return 4
     record["phase"] = phase
     branch = option(args, "--branch")
@@ -520,9 +713,17 @@ def cmd_heartbeat(args):
     if branch:
         record["branch"] = branch
     if number:
-        record["pr"] = int(number) if number.isdigit() else number
+        record["pr"] = pr_number(number)
     record["heartbeatAt"] = iso(at)
-    move_ref(write_tag(record))
+    try:
+        push_ref(write_tag(record), record["_sha"])
+    except ToolError as error:
+        if not error.rejected:
+            raise
+        current = read_record()
+        print("NOT HOLDER: " + (describe(current, at) if current else "the clearance was released under this session"))
+        lost_holding(me)
+        return 4
     write_local(record)
     print("HEARTBEAT %s %s" % (phase, record["heartbeatAt"]))
     return 0
@@ -535,15 +736,27 @@ def cmd_release(args):
     record = read_record()
     if record is None:
         print("CLEAR (nothing to release)")
-        remove_local()
+        remove_local(None if force else me)
         return 0
-    if record.get("holder") != me and not force:
+    if (unreadable(record) or record.get("holder") != me) and not force:
         print("NOT HOLDER: " + describe(record, at) + " — the holder releases it, or the owner runs release --force")
+        lost_holding(me)
         return 4
     if force:
-        print("forcing release of a clearance " + describe(record, at))
-    delete_ref()
-    remove_local()
+        progress("forcing release of a clearance " + describe(record, at))
+    try:
+        push_ref(None, record["_sha"])
+    except ToolError as error:
+        if not error.rejected:
+            raise
+        current = read_record()
+        if current is not None and not force:
+            print("NOT HOLDER: " + describe(current, at))
+            lost_holding(me)
+            return 4
+        if current is not None:
+            push_ref(None, current["_sha"])
+    remove_local(None if force else me)
     print("RELEASED %s" % (record.get("branch") or record.get("purpose") or "release"))
     return 0
 
@@ -557,25 +770,41 @@ def cmd_adopt(args):
     if record is None:
         print("NOT HOLDER: no clearance to adopt (claim instead)")
         return 4
+    if unreadable(record):
+        print("ERROR: " + describe(record, at))
+        return 1
     if record.get("holder") == me:
-        write_local(record)
-        print("ADOPTED (already held by this session) %s %s" % (record.get("branch") or "-", ("#%s" % record["pr"]) if record.get("pr") else "-"))
-        return 0
+        if renew(record, me, at) is None:
+            write_local(record, keeper_for(me))
+            print("ADOPTED (already held by this session; heartbeat renewed) %s %s" % (record.get("branch") or "-", ("#%s" % record["pr"]) if record.get("pr") else "-"))
+            return 0
+        record = read_record()
+        if record is None:
+            print("NOT HOLDER: no clearance to adopt (claim instead)")
+            return 4
     if not is_stale(record, at):
         print("BUSY " + describe(record, at) + " — not stale, nothing to adopt")
         return 2
     if print_token:
-        print("holder token %s — export it as DEVSTRIDE_LEASE_TOKEN for heartbeat and release" % me)
+        progress("holder token %s — export it as DEVSTRIDE_LEASE_TOKEN for heartbeat and release" % me)
     record.update({"holder": me, "user": gh_user(), "machine": socket.gethostname(), "heartbeatAt": iso(at)})
-    move_ref(write_tag(record))
-    write_local(record)
+    try:
+        push_ref(write_tag(record), record["_sha"])
+    except ToolError as error:
+        if not error.rejected:
+            raise
+        current = read_record()
+        print("BUSY " + (describe(current, at) if current else "the clearance was released meanwhile — claim instead"))
+        return 2
+    write_local(record, start_keeper(me))
     print("ADOPTED %s %s" % (record.get("branch") or "-", ("#%s" % record["pr"]) if record.get("pr") else "-"))
     print("Resume: branch %s, pull request %s, phase %s" % (
         record.get("branch") or "none cut yet", ("#%s" % record["pr"]) if record.get("pr") else "none opened yet", record.get("phase")))
     return 0
 
 
-COMMANDS = {"claim": cmd_claim, "status": cmd_status, "heartbeat": cmd_heartbeat, "release": cmd_release, "adopt": cmd_adopt}
+COMMANDS = {"claim": cmd_claim, "status": cmd_status, "heartbeat": cmd_heartbeat, "release": cmd_release,
+            "adopt": cmd_adopt, "keeper": cmd_keeper}
 
 
 def main(argv):
@@ -588,8 +817,8 @@ def main(argv):
         fail("unknown command %s" % argv[0], 1)
     try:
         return command(argv[1:])
-    except GhError as error:
-        print("ERROR: %s" % (error.text.splitlines()[0] if error.text else "gh failed"))
+    except ToolError as error:
+        print("ERROR: %s" % (error.text.splitlines()[0] if error.text else "a git or gh call failed"), file=sys.stderr)
         return 1
 
 

@@ -78,32 +78,43 @@ C2="$(node "$C" nonsense)"; RC2=$?
 if [ "$RA" -eq 2 ] && printf '%s' "$A" | grep -q '^ERROR: --number is required' && [ "$RB" -eq 2 ] && printf '%s' "$B" | grep -q 'release is missing' && [ "$RC2" -eq 2 ]; then
   ok "(10) missing argument / missing release block / unknown mode → ERROR, exit 2"; else bad "(10) a=$RA:$A b=$RB:$B c=$RC2:$C2"; fi
 
-# (11) reruns: after a release closes, the newest finished run of each open release pull request,
-#      matched by head branch or head sha, skipping in-progress runs; nothing for a closed hotfix
+# (11) reruns: when the queue changes, the newest finished run of each OTHER open release pull
+#      request, matched by the pull-request number the Actions API recorded on the run, else by
+#      head branch, else by sha; a run still in progress for that head defers the pull request;
+#      a closed hotfix re-runs nothing; a dispatch (no event head) re-settles every open release
 cat > "$W/open-rr.json" <<'J'
 [{"number":3985,"headRefName":"release/26-10-18-2","headRefOid":"aaa1"},{"number":3990,"headRefName":"release/26-10-19","headRefOid":"bbb2"},
- {"number":3984,"headRefName":"phil/26-10-18/I3-feature","headRefOid":"ccc3"}]
+ {"number":3991,"headRefName":"release/26-10-20","headRefOid":"aaa1"},{"number":3984,"headRefName":"phil/26-10-18/I3-feature","headRefOid":"ccc3"}]
 J
 cat > "$W/runs.json" <<'J'
-[{"databaseId":901,"headBranch":"release/26-10-18-2","headSha":"aaa1","status":"completed"},
- {"databaseId":900,"headBranch":"release/26-10-18-2","headSha":"aaa0","status":"completed"},
- {"databaseId":902,"headBranch":"master","headSha":"bbb2","status":"in_progress"},
- {"databaseId":899,"headBranch":"master","headSha":"bbb2","status":"completed"},
- {"databaseId":903,"headBranch":"phil/26-10-18/I3-feature","headSha":"ccc3","status":"completed"}]
+[{"databaseId":905,"headSha":"aaa1","headBranch":"release/26-10-20","status":"completed","pullRequests":[3991]},
+ {"databaseId":901,"headSha":"aaa1","headBranch":"release/26-10-18-2","status":"completed","pullRequests":[3985]},
+ {"databaseId":900,"headSha":"aaa0","headBranch":"release/26-10-18-2","status":"completed","pullRequests":[3985]},
+ {"databaseId":902,"headSha":"bbb2","headBranch":"master","status":"in_progress","pullRequests":[]},
+ {"databaseId":899,"headSha":"bbb2","headBranch":"master","status":"completed","pullRequests":[]},
+ {"databaseId":903,"headSha":"ccc3","headBranch":"phil/26-10-18/I3-feature","status":"completed","pullRequests":[3984]}]
 J
-A="$(node "$C" reruns --closed-head release/26-10-18 --config "$W/config.json" --open-prs "$W/open-rr.json" --runs "$W/runs.json" | tr '\n' ' ')"
-B="$(node "$C" reruns --closed-head phil/hotfix/26-10-18/I1-fix --config "$W/config.json" --open-prs "$W/open-rr.json" --runs "$W/runs.json" | tr '\n' ' ')"
-if [ "$A" = "901 899 " ] && [ "$B" = "" ]; then
-  ok "(11) reruns → 901 (newest by head branch) and 899 (by sha, skipping the in-progress 902); a closed hotfix re-runs nothing"
-else bad "(11) a='$A' b='$B'"; fi
+A="$(node "$C" reruns --event-head release/26-10-18 --number 3981 --config "$W/config.json" --open-prs "$W/open-rr.json" --runs "$W/runs.json" | tr '\n' ' ')"
+B="$(node "$C" reruns --event-head phil/hotfix/26-10-18/I1-fix --number 3983 --config "$W/config.json" --open-prs "$W/open-rr.json" --runs "$W/runs.json" | tr '\n' ' ')"
+D="$(node "$C" reruns --event-head release/26-10-19 --number 3990 --config "$W/config.json" --open-prs "$W/open-rr.json" --runs "$W/runs.json" | tr '\n' ' ')"
+E="$(node "$C" reruns --event-head '' --number 0 --config "$W/config.json" --open-prs "$W/open-rr.json" --runs "$W/runs.json" | tr '\n' ' ')"
+if [ "$A" = "901 905 " ] && [ "$B" = "" ] && [ "$D" = "901 905 " ] && [ "$E" = "901 905 " ]; then
+  ok "(11) reruns → 901 and 905 (two branches on one sha, each its own run), never 899/902 (bbb2 has a run in progress), the event's own pull request excluded; a hotfix → none; a dispatch → all"
+else bad "(11) a='$A' b='$B' d='$D' e='$E'"; fi
+
+# (11b) a list as long as the limit fails the check closed, never ALLOWED
+python3 -c 'import json,sys; json.dump([{"number":n,"headRefName":"x/%d"%n} for n in range(1,501)], open(sys.argv[1],"w"))' "$W/open-many.json"
+OUT="$(node "$C" check --head release/26-10-18 --base master --number 3981 --config "$W/config.json" --open-prs "$W/open-many.json")"; RC=$?
+if [ "$RC" -eq 2 ] && printf '%s' "$OUT" | grep -q 'may be truncated'; then ok "(11b) 500 open pull requests → ERROR, the order cannot be proven"; else bad "(11b) rc=$RC: $OUT"; fi
 
 # (12) the workflow template names the checker path the test exercised, holds the production
 #      placeholder exactly once in its trigger, never checks out the head, and carries both jobs
 T="$ROOT/skills/setup/references/ci-templates/release-tower.yaml"
-if grep -q 'pull_request_target:' "$T" && [ "$(grep -c '{{PRODUCTION_BRANCH}}' "$T")" -eq 1 ] && grep -q 'branches: \[{{PRODUCTION_BRANCH}}\]' "$T" \
-   && grep -q 'name: release-tower$' "$T" && grep -q "github.event.action == 'closed'" "$T" && grep -q '.github/scripts/release-tower-check.mjs' "$T" \
+if grep -q 'pull_request_target:' "$T" && [ "$(grep -c '{{PRODUCTION_BRANCH}}' "$T")" -eq 2 ] && grep -q 'branches: \[{{PRODUCTION_BRANCH}}\]' "$T" \
+   && grep -q 'name: release-tower$' "$T" && grep -q "github.run_attempt == 1" "$T" && grep -q 'workflow_dispatch' "$T" && grep -q '.github/scripts/release-tower-check.mjs' "$T" \
+   && grep -q -- '--limit 500' "$T" && grep -q 'pullRequests: \[.pull_requests' "$T" \
    && ! grep -qE 'ref: *\$\{\{ *github\.event\.pull_request\.head' "$T" && grep -q 'release-tower-override' "$T"; then
-  ok "(12) release-tower.yaml: pull_request_target, one production placeholder, both jobs, no head checkout"
+  ok "(12) release-tower.yaml: pull_request_target + dispatch, the production placeholder (trigger and dispatch base), both jobs, first attempt only, limit 500, runs from the API, no head checkout"
 else bad "(12) the workflow template drifted from the checker"; fi
 
 exit $FAIL

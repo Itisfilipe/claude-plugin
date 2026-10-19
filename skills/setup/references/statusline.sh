@@ -315,14 +315,17 @@ if [ -n "$SL_CLEARANCE_CMD" ]; then
   rkey=$(printf '%s' "$toplevel" | (md5 -q 2>/dev/null || shasum | cut -d' ' -f1))
   rcache="${TMPDIR:-/tmp}/ds-statusline-release-$rkey"
   rrefresh() {
-    (cd "$toplevel" && eval "$SL_CLEARANCE_CMD") 2>/dev/null | head -1 >"$rcache.tmp"
+    # A provider that fails prints nothing here, whatever it wrote: the bar never shows an error.
+    local line; line=$( (cd "$toplevel" && eval "$SL_CLEARANCE_CMD") 2>/dev/null ) || line=""
+    printf '%s' "$line" | head -1 >"$rcache.tmp"
     mv -f "$rcache.tmp" "$rcache" 2>/dev/null
   }
   rspawn() { touch "$rcache" 2>/dev/null; (rrefresh &) >/dev/null 2>&1; }
   rel=""
   if [ -f "$rcache" ]; then
     rage=$(( $(date +%s) - $(stat -f %m "$rcache" 2>/dev/null || stat -c %Y "$rcache" 2>/dev/null || echo 0) ))
-    rel=$(cat "$rcache" 2>/dev/null)
+    rel=$(tr -d '[:space:]' <"$rcache" 2>/dev/null | head -c 1)
+    [ -n "$rel" ] && rel=$(head -1 "$rcache" 2>/dev/null)
     [ "$rage" -ge "$ttl" ] && rspawn
   else
     : >"$rcache"; rspawn
