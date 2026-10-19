@@ -346,33 +346,38 @@ if [ -n "$KPID" ] && [ "$T1" != "$T0" ] && [ "$T1" \> "$T0" ] && ! kill -0 "$KPI
 else bad "(22c) keeper=$KPID T0=$T0 T1=$T1"; fi
 
 # (23) the holder's own keeper moving the ref is not a lost clearance: heartbeat and release carry on
-#      from the object the keeper wrote (hook declines the first push while armed; a side process
-#      re-stamps the ref for the SAME holder the moment it was declined — a keeper tick, in effect)
+#      from the object the keeper wrote. The hook declines EVERY push until the keeper's stamp is in
+#      place (a side process installs it the moment the first push was declined), so the command
+#      can only succeed by retrying with a lease on the stamped object — the keeper-moved path.
 fresh ownstamp
 run claim
 cat > "$STATE/origin.git/hooks/pre-receive" <<HOOK
 #!/bin/bash
-if [ -f "$STATE/stamp-armed" ]; then : > "$STATE/stamp-declined"; echo "keeper landing" >&2; exit 1; fi
+if [ -f "$STATE/stamp-want" ]; then
+  want="\$(cat "$STATE/stamp-want")"; have="\$(git rev-parse -q --verify refs/clearance/release)"
+  if [ "\$have" != "\$want" ]; then : > "$STATE/stamp-declined"; echo "keeper landing" >&2; exit 1; fi
+fi
 exit 0
 HOOK
 chmod +x "$STATE/origin.git/hooks/pre-receive"
-restamp() { # restamp AT — a tag for THIS holder with a fresh heartbeat, present on origin, moved into place by a side process
+restamp() { # restamp AT — a tag for THIS holder with a fresh heartbeat, present on origin; a side process moves the ref to it once the first push was declined
   local sha
   sha="$(printf 'object %s\ntype commit\ntag release-clearance\ntagger t <t@t> 1 +0000\n\n{"v":1,"repo":"o/r","holder":"claude:me-1","user":"alice","machine":"m9","purpose":"release","phase":"claimed","branch":null,"pr":null,"takenAt":"2026-10-18T10:05:00Z","heartbeatAt":"%s"}\n' "$(git rev-parse HEAD)" "$1" | git hash-object -t tag -w --stdin)"
-  git push -q origin "${sha}:refs/race-seed/$1"
-  rm -f "$STATE/stamp-declined"; : > "$STATE/stamp-armed"
-  ( until [ -f "$STATE/stamp-declined" ]; do sleep 0.05; done; git -C "$STATE/origin.git" update-ref refs/clearance/release "$sha"; rm -f "$STATE/stamp-armed" ) &
+  git push -q origin "${sha}:refs/race-seed/s$RANDOM$RANDOM" || { echo "  (23) seed push failed" >&2; return 1; }
+  rm -f "$STATE/stamp-declined" "$STATE/stamp-installed"; printf '%s' "$sha" > "$STATE/stamp-want"
+  ( until [ -f "$STATE/stamp-declined" ]; do sleep 0.05; done; git -C "$STATE/origin.git" update-ref refs/clearance/release "$sha" && : > "$STATE/stamp-installed" ) &
 }
-restamp 2026-10-18T10:06:00Z
-run heartbeat review --branch release/26-10-18
-wait
-HB_RC=$RC; HB_OUT="$OUT"
-restamp 2026-10-18T10:07:00Z
-run release
-wait
-if [ "$HB_RC" -eq 0 ] && printf '%s' "$HB_OUT" | grep -q '^HEARTBEAT review' && [ "$RC" -eq 0 ] && printf '%s' "$OUT" | grep -q '^RELEASED' && [ -z "$(refsha)" ] && [ ! -f "$CLEARANCE_RECORD" ]; then
-  ok "(23) a stamp by this holder's own keeper between read and push → heartbeat and release retry on the new object, exit 0 (NOT HOLDER is for another holder)"
-else bad "(23) heartbeat rc=$HB_RC: $HB_OUT / release rc=$RC: $OUT (ref: $(refsha))"; fi
+restamp 2026-10-18T10:06:00Z && run heartbeat review --branch release/26-10-18; wait
+HB_RC=$RC; HB_OUT="$OUT"; HB_DECLINED=0; [ -f "$STATE/stamp-declined" ] && [ -f "$STATE/stamp-installed" ] && HB_DECLINED=1
+HB_PHASE="$(record phase)"
+rm -f "$STATE/stamp-want"
+restamp 2026-10-18T10:07:00Z && run release; wait
+REL_DECLINED=0; [ -f "$STATE/stamp-declined" ] && [ -f "$STATE/stamp-installed" ] && REL_DECLINED=1
+rm -f "$STATE/stamp-want"
+if [ "$HB_RC" -eq 0 ] && printf '%s' "$HB_OUT" | grep -q '^HEARTBEAT review' && [ "$HB_DECLINED" = 1 ] && [ "$HB_PHASE" = review ] \
+   && [ "$RC" -eq 0 ] && printf '%s' "$OUT" | grep -q '^RELEASED' && [ "$REL_DECLINED" = 1 ] && [ -z "$(refsha)" ] && [ ! -f "$CLEARANCE_RECORD" ]; then
+  ok "(23) a stamp by this holder's own keeper between read and push → heartbeat and release retry with a lease on the stamped object, exit 0 (NOT HOLDER is for another holder)"
+else bad "(23) heartbeat rc=$HB_RC declined+installed=$HB_DECLINED phase=$HB_PHASE: $HB_OUT / release rc=$RC declined+installed=$REL_DECLINED: $OUT (ref: $(refsha))"; fi
 
 # (24) a checkout that has not fetched production's newest commits still claims and heartbeats: the
 #      tag points at a blob of its own, never at a commit the checkout may lack
