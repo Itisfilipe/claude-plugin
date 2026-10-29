@@ -39,6 +39,12 @@ Every key below is optional and opt-in; a repository that sets none sees no chan
   `setup/references/config-defaults.md` 12,900 → 13,050; `release/references/review-once.md` is
   budgeted at 1,100.
 
+### Fixed
+
+- **The status line's cache ages on Linux machines with uutils coreutils** (Ubuntu's newer
+  `stat`): it now reads modification times with the GNU form first, so cached segments expire
+  correctly instead of every call reading stale or missing data.
+
 ### Cost
 
 <!-- scripts/measure-cost.sh --table --since devstride--v3.12.0 @ 5f429f3, method: tokens = ceil(utf8_bytes / 3); bytes as `wc -c` -->

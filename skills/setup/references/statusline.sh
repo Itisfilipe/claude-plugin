@@ -1,5 +1,5 @@
 #!/bin/bash
-# ds-statusline: managed v3.2.0 — installed and kept up to date by the devstride
+# ds-statusline: managed v3.13.0 — installed and kept up to date by the devstride
 # plugin. DELETE THIS LINE to take ownership: the session-start hook only ever
 # replaces a file that still carries it, and never touches one that does not.
 #
@@ -238,7 +238,7 @@ if [ -n "$SL_STAGE_RESOLVE" ]; then
   skey=$(printf '%s' "$toplevel" | (md5 -q 2>/dev/null || shasum | cut -d' ' -f1))
   scache="${TMPDIR:-/tmp}/ds-statusline-stage-$skey"
   sage=99999
-  [ -f "$scache" ] && sage=$(( $(date +%s) - $(stat -f %m "$scache" 2>/dev/null || stat -c %Y "$scache" 2>/dev/null || echo 0) ))
+  [ -f "$scache" ] && sage=$(( $(date +%s) - $(stat -c %Y "$scache" 2>/dev/null || stat -f %m "$scache" 2>/dev/null || echo 0) ))
   if [ "$sage" -lt 10 ]; then
     stage=$(cat "$scache" 2>/dev/null)
   else
@@ -274,7 +274,7 @@ spawn_refresh() { touch "$cache" 2>/dev/null; (refresh &) >/dev/null 2>&1; }
 
 pr=""
 if [ -f "$cache" ]; then
-  age=$(( $(date +%s) - $(stat -f %m "$cache" 2>/dev/null || stat -c %Y "$cache" 2>/dev/null || echo 0) ))
+  age=$(( $(date +%s) - $(stat -c %Y "$cache" 2>/dev/null || stat -f %m "$cache" 2>/dev/null || echo 0) ))
   pr=$(cat "$cache" 2>/dev/null)
   [ "$age" -ge "$ttl" ] && spawn_refresh
 else
@@ -323,7 +323,7 @@ if [ -n "$SL_CLEARANCE_CMD" ]; then
   rspawn() { touch "$rcache" 2>/dev/null; (rrefresh &) >/dev/null 2>&1; }
   rel=""
   if [ -f "$rcache" ]; then
-    rage=$(( $(date +%s) - $(stat -f %m "$rcache" 2>/dev/null || stat -c %Y "$rcache" 2>/dev/null || echo 0) ))
+    rage=$(( $(date +%s) - $(stat -c %Y "$rcache" 2>/dev/null || stat -f %m "$rcache" 2>/dev/null || echo 0) ))
     rel=$(tr -d '[:space:]' <"$rcache" 2>/dev/null | head -c 1)
     [ -n "$rel" ] && rel=$(head -1 "$rcache" 2>/dev/null)
     [ "$rage" -ge "$ttl" ] && rspawn
