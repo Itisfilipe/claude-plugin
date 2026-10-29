@@ -44,8 +44,8 @@ else bad "(1) rc=$RC out=$OUT"; fi
 
 OUT="$(python3 "$HELPER" remove --local "$R" --expect-sha256 "$SHA")"; RC=$?
 BACKUP="$(printf '%s' "$OUT" | field 'd["backup"]')"
-MODE="$(stat -f '%Lp' "$BACKUP" 2>/dev/null || stat -c '%a' "$BACKUP")"
-SETTINGS_MODE="$(stat -f '%Lp' "$PERSONAL" 2>/dev/null || stat -c '%a' "$PERSONAL")"
+MODE="$(stat -c '%a' "$BACKUP" 2>/dev/null || stat -f '%Lp' "$BACKUP")"
+SETTINGS_MODE="$(stat -c '%a' "$PERSONAL" 2>/dev/null || stat -f '%Lp' "$PERSONAL")"
 if [ "$RC" -eq 0 ] && [ "$MODE" = 600 ] && [ "$SETTINGS_MODE" = 640 ] \
    && [ "${BACKUP#"$R"/}" = "$BACKUP" ] && ! printf '%s' "$OUT" | grep -q 'personal-status' \
    && python3 - "$PERSONAL" "$BACKUP" <<'PY'
