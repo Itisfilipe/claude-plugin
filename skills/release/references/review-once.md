@@ -25,7 +25,9 @@ epic release pull request): `git rev-parse <sha>^{tree}`.
 - **Identical** → no merge-gate review on the production pull request. Instead, run ONE pass of
   `highRiskEngine` (the configured local CLI when it names that engine) scoped to the files the
   release changes under `highRiskPaths`; none changed → no pass, said so. Its findings take the
-  usual route (verify, fix on the release branch under the fix-exclusion check, reply).
+  usual route (verify, fix on the release branch under the fix-exclusion check, reply). Then
+  invoke `review` in PRE-SHIP RESUME mode (no review cycle): it marks the pull request ready and
+  settles CI, so the release never stays a draft.
 - **Different** — a fix landed on the release branch, or a hotfix merge (`release-branch.md` §4)
   changed the tree → `review` runs as a follow-up over that difference, carrying the settled ledger,
   with its own scope rules (`skills/review/references/delta-re-review.md`), which widen the scope
@@ -45,8 +47,8 @@ be computed runs the check.
 
 ## A train that carries reviewed release units
 
-With `epicIntegrationBranches.releaseTarget` set to the support train's branch, a finished epic
-reaches the train through its own release pull request — its full review. The train pull request
+Only when `release.productionReview` is set and `epicIntegrationBranches.releaseTarget` is the support train's branch: a finished epic reaches the
+train through its own release pull request — its full review — and the train pull request
 (`release-branch.md` §1 step 4) then reviews only what no pull request has reviewed: the commits
 the fast one-offs brought, NOT the commits a merged, reviewed release pull request brought (list
 those in the scope manifest as already reviewed, with their pull request numbers). CI still runs
