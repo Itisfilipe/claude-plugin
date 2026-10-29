@@ -54,8 +54,9 @@ take the latest `mergedAt`. Never trust best-match ranking or a body match alone
    one-off(s) for release <date>`, the body listing each one-off and carrying the range marker —
    flagged as a release-unit pull request exactly as `build-item` step 8 flags an epic release, so
    `review` takes the FULL diff (a one-off merged fast onto the train had no full review yet — this
-   is its first and only full review before production; a release unit that joined through its own
-   reviewed pull request is excluded, `review-once.md`), and declaring `merge-only: true` and
+   is its first and only full review before production; with `release.productionReview` set, a
+   release unit that joined through its own reviewed pull request is excluded, `review-once.md`),
+   and declaring `merge-only: true` and
    `fix-exclusions: true`. `pr` owns the draft hold, the pre-ship checks its step 2 selects and the
    ready-flip that releases CI once; the untracked-deferral list it returns (an adopted run's too)
    goes to `release` step 2, never spliced. Fixes are committed on the snapshot, each passing §3's
