@@ -39,6 +39,34 @@ Every key below is optional and opt-in; a repository that sets none sees no chan
   `setup/references/config-defaults.md` 12,900 → 13,050; `release/references/review-once.md` is
   budgeted at 1,100.
 
+### Cost
+
+<!-- scripts/measure-cost.sh --table --since devstride--v3.12.0 @ 5f429f3, method: tokens = ceil(utf8_bytes / 3); bytes as `wc -c` -->
+| File | bytes@devstride--v3.12.0 | tokens@devstride--v3.12.0 | bytes now | tokens now | Δ tokens | budget |
+|---|---:|---:|---:|---:|---:|---:|
+| skills/setup/SKILL.md | 32,096 | 10,699 | 32,096 | 10,699 | +0 | 10,700 |
+| skills/build-item/SKILL.md | 23,999 | 8,000 | 23,999 | 8,000 | +0 | 8,000 |
+| skills/doctor/SKILL.md | 23,987 | 7,996 | 23,987 | 7,996 | +0 | 8,000 |
+| skills/review/SKILL.md | 23,900 | 7,967 | 23,900 | 7,967 | +0 | 8,000 |
+| skills/plan/SKILL.md | 23,888 | 7,963 | 23,888 | 7,963 | +0 | 8,000 |
+| skills/release/SKILL.md | 23,332 | 7,778 | 23,560 | 7,854 | +76 | 7,900 |
+| skills/rebalance/SKILL.md | 17,406 | 5,802 | 17,406 | 5,802 | +0 | 5,900 |
+| skills/ultracode-build/SKILL.md | 14,470 | 4,824 | 14,470 | 4,824 | +0 | 4,900 |
+| skills/pr/SKILL.md | 11,289 | 3,763 | 11,289 | 3,763 | +0 | 3,800 |
+| skills/rationalize-gantt/SKILL.md | 7,936 | 2,646 | 7,936 | 2,646 | +0 | 2,700 |
+| skills/ci-audit/SKILL.md | 7,570 | 2,524 | 7,570 | 2,524 | +0 | 2,600 |
+| skills/create-defect/SKILL.md | 7,481 | 2,494 | 7,481 | 2,494 | +0 | 2,500 |
+| skills/branch-hotfix/SKILL.md | 6,321 | 2,107 | 6,321 | 2,107 | +0 | 2,200 |
+| skills/insert-defect/SKILL.md | 4,714 | 1,572 | 4,714 | 1,572 | +0 | 1,600 |
+| skills/comprehend-plan/SKILL.md | 4,575 | 1,525 | 4,575 | 1,525 | +0 | 1,600 |
+| skills/insert-story/SKILL.md | 4,037 | 1,346 | 4,037 | 1,346 | +0 | 1,400 |
+| skills/create-story/SKILL.md | 3,999 | 1,333 | 3,999 | 1,333 | +0 | 1,400 |
+| skills/push/SKILL.md | 3,005 | 1,002 | 3,005 | 1,002 | +0 | 1,100 |
+| skills/update/SKILL.md | 2,799 | 933 | 2,799 | 933 | +0 | 1,000 |
+| skills/branch-feature/SKILL.md | 2,577 | 859 | 2,577 | 859 | +0 | 900 |
+| alwaysOn.context (skill listing) | 3,697 | 1,233 | 3,697 | 1,233 | +0 | 1,300 |
+| **total (bodies)** | 249,381 | 83,133 | 249,609 | 83,209 | +76 | |
+
 ## [3.12.0] — 2026-10-19
 
 ### Changed — BREAKING: the `enterprise` delivery profile is retired
@@ -1992,7 +2020,8 @@ holes found while fixing them.
 - Initial scaffold: plugin manifest, marketplace entry, MIT license, and repository conventions.
   Installed an empty plugin — no skills yet.
 
-[unreleased]: https://github.com/devstride/claude-plugin/compare/devstride--v3.11.0...HEAD
+[unreleased]: https://github.com/devstride/claude-plugin/compare/devstride--v3.13.0...HEAD
+[3.13.0]: https://github.com/devstride/claude-plugin/compare/devstride--v3.12.0...devstride--v3.13.0
 [3.12.0]: https://github.com/devstride/claude-plugin/compare/devstride--v3.11.0...devstride--v3.12.0
 [3.11.0]: https://github.com/devstride/claude-plugin/compare/devstride--v3.10.0...devstride--v3.11.0
 [3.10.0]: https://github.com/devstride/claude-plugin/compare/devstride--v3.9.0...devstride--v3.10.0
