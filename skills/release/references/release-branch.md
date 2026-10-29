@@ -141,7 +141,10 @@ advanced under a release-branch head.
 
 1. **Sync production into the source.** Without it the release branch's fix commits never reach
    `releaseSource`. Already `git merge-base --is-ancestor origin/<productionBranch>
-   origin/<releaseSource>` → nothing to do. Otherwise branch per `branchNaming` (slug
+   origin/<releaseSource>` → nothing to do. With `release.syncWorkflow` set, a workflow syncs it:
+   open nothing, re-fetch every minute until the source contains production (90 minutes at most);
+   that workflow's pull request left open (a conflict, a failed check) or the time running out →
+   STOP with its link for the owner. Otherwise branch per `branchNaming` (slug
    `sync-<productionBranch>-into-<releaseSource>`) from `origin/<releaseSource>`, `git merge --no-ff
    origin/<productionBranch>` (a conflict STOPS with the files), push, and invoke **`pr` driven**
    with base `<releaseSource>` passed explicitly, declaring `merge-only: true` (its merge commit is

@@ -25,6 +25,9 @@ Every key below is optional and opt-in; a repository that sets none sees no chan
   release diff — taken at the head as it stands when the checks run, recomputed when the head
   moves — touches its `pathGlobs` (reported when skipped). Without the field, `pathGlobs` on a
   `releaseOnly` entry stays ignored and the check runs at every release, as before.
+- **`release.syncWorkflow`**: when a workflow syncs the production branch back into the source,
+  the release close-out waits for it (and stops with its link if it is left open) instead of
+  opening a second sync pull request.
 - **A support train that carries reviewed release units** (only with `release.productionReview`
   set): with `epicIntegrationBranches.releaseTarget` set to the support train's branch, a finished epic joins
   the train through its reviewed release pull request, and the train pull request's review covers

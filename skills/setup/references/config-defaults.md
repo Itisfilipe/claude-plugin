@@ -237,6 +237,7 @@ work lands, which is the operator's decision. Absent, the loop behaves as before
 | --- | --- | --- |
 | `release.releaseBranchPattern` | a pattern, e.g. `"release/<YY-MM-DD>[-n]"` | the release pull request's head is `release.releaseSource` |
 | `release.releaseBranchFixExclusions` | an array of path patterns, e.g. `["infra/**", "db/migrations/**"]` | no fix commit is refused on a release branch |
+| `release.syncWorkflow` | a workflow file, e.g. `"sync-master-into-develop.yaml"` | `release` opens its own pull request syncing production into the source |
 | `release.mergeTrainBeforeCut` | boolean | `false`: nothing is merged into the source before the cut |
 | `supportTrain.branch` | a branch name, e.g. `"train/support"` | one-offs use `baseBranch` |
 | `supportTrain.fastMerges` | boolean | `false`: a one-off on the train takes the full per-story pull-request ritual, into the train |
@@ -255,6 +256,8 @@ a trailing `[-n]`): `${CLAUDE_PLUGIN_ROOT}/skills/release/references/branch-patt
   (deploy configuration, database migrations). Such a fix goes to the source by a normal pull
   request; the release branch is abandoned and re-cut. The same list keeps one-offs that touch
   those paths off the support train.
+- **`release.syncWorkflow`** — a workflow that syncs the production branch into the source after
+  every push to production; `release` then waits for it instead of opening a duplicate.
 - **`release.mergeTrainBeforeCut` and `supportTrain.*`** — one-off work batches on one long-lived
   branch (with `fastMerges`, merged there without a pull request of its own after the local risk
   check and gate). Before each cut `release` opens the train's pull request into the source, runs
