@@ -5,8 +5,8 @@ load: contract
 
 **Goal:** a repository that already reviews and tests every change fully on its way into
 `releaseSource` can stop paying for the same review and the same test again on the way to
-`productionBranch`. Every key here is OPTIONAL; with none set, `release` behaves exactly as its
-SKILL.md says (every engine on the production PR, every `releaseOnly` check unconditionally).
+`productionBranch`. Every key here is OPTIONAL and opt-in; with none set, `release` behaves exactly
+as its SKILL.md says (every engine on the production PR, every `releaseOnly` check unconditionally).
 
 ## `release.productionReview` — review once
 
@@ -20,40 +20,28 @@ SKILL.md says (every engine on the production PR, every `releaseOnly` check unco
 
 With `reviewIdenticalTree: false`, step 2 compares the release head's tree with the tree a full
 review last settled at a pull request into `releaseSource` (the support-train pull request, an
-epic release pull request): `git rev-parse <sha>^{tree}`. A hotfix merged into the release branch
-under `release-branch.md` §4 was reviewed on its own pull request and does not count as a
-difference.
+epic release pull request): `git rev-parse <sha>^{tree}`.
 
 - **Identical** → no merge-gate review on the production pull request. Instead, run ONE pass of
   `highRiskEngine` (the configured local CLI when it names that engine) scoped to the files the
-  release changes under `highRiskPaths`; none changed → no pass at all, said so. Its findings take
-  the usual route (verify, fix on the release branch under the fix-exclusion check, reply).
-- **Different** (a fix landed on the release branch) → a contextual review of exactly that
-  difference, carrying the settled ledger — never a fresh full review.
+  release changes under `highRiskPaths`; none changed → no pass, said so. Its findings take the
+  usual route (verify, fix on the release branch under the fix-exclusion check, reply).
+- **Different** — a fix landed on the release branch, or a hotfix merge (`release-branch.md` §4)
+  changed the tree → `review` runs as a follow-up over that difference, carrying the settled ledger,
+  with its own scope rules (`skills/review/references/delta-re-review.md`), which widen the scope
+  when they say so. Once that follow-up settles, its head counts as the reviewed tree.
 - Absent, or `reviewIdenticalTree` not `false` → step 2 runs as written.
 
 Say which path the release took in the step-4 recap, with the two tree hashes.
 
-## `release.lightRelease` — the light release
+## `onlyWhenTouched` on a `releaseOnly` pre-ship check
 
-```json
-"lightRelease": { "disqualifyingPaths": ["migrations/**", "infra/**"] }
-```
-
-A release whose diff against `productionBranch` touches none of `disqualifyingPaths` is LIGHT:
-the support-train (or epic) pull request into `releaseSource` gets ONE review round — another
-only for a verified P1 or serious P2 — and the production pull request follows
-`productionReview` as above. Any match → the full release. Never skipped by a light release:
-the required CI, the release clearance, the owner's go-ahead and deploy approval, the
-post-deploy check, documentation and any owed customer reply. Decide it in step 0, from the
-delta, and report it with the paths checked.
-
-## `pathGlobs` on a `releaseOnly` check
-
-A `releaseOnly` `preShipChecks` entry with EMPTY `pathGlobs` runs at every release, as before. A
-NON-EMPTY `pathGlobs` runs it only when the release diff (`origin/<productionBranch>...<sourceHead>`)
-touches a matching path; otherwise step 2b reports it skipped with that reason (never silently).
-A diff that cannot be computed runs the check.
+A `releaseOnly` `preShipChecks` entry runs at every release, `pathGlobs` ignored — unless the entry
+ALSO sets `"onlyWhenTouched": true`. Then it runs only when the release diff touches one of its
+`pathGlobs`, and step 2b reports a skip with its reason (never silently). The diff is
+`origin/<productionBranch>...<head>` for the release head as it stands when 2b runs, and the
+selection is recomputed whenever the head moves (a fix commit, a hotfix merge). A diff that cannot
+be computed runs the check.
 
 ## A train that carries reviewed release units
 
@@ -66,5 +54,5 @@ once over the whole train.
 
 ## Cited by
 
-- `skills/release/SKILL.md` — steps 0, 2 and 2b.
+- `skills/release/SKILL.md` — steps 2 and 2b.
 - `skills/release/references/release-branch.md` — §1 step 4.

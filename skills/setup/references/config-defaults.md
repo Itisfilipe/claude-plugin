@@ -112,8 +112,8 @@ repository that cannot safely use them — and `autoRelease` is the profile's, s
   the support train's branch (`supportTrain.branch`) makes a finished epic join the train through
   its reviewed release pull request, so every release carries epics and one-offs to the base branch
   together, CI once (`skills/release/references/review-once.md`).
-- **Optional release economies** (`release.productionReview`, `release.lightRelease`, `pathGlobs`
-  on a `releaseOnly` check): absent by default; each lets a repository that reviews and tests
+- **Optional release economies** (`release.productionReview`, `onlyWhenTouched` on a `releaseOnly`
+  check): absent by default; each lets a repository that reviews and tests
   fully on the way into `releaseSource` skip repeating that on the way to production. Contract:
   `skills/release/references/review-once.md`.
 - **A story is Done when its release unit reaches `releaseTarget`**, not when it merges onto the
