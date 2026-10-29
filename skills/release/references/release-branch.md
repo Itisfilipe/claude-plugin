@@ -54,7 +54,9 @@ take the latest `mergedAt`. Never trust best-match ranking or a body match alone
    one-off(s) for release <date>`, the body listing each one-off and carrying the range marker —
    flagged as a release-unit pull request exactly as `build-item` step 8 flags an epic release, so
    `review` takes the FULL diff (a one-off merged fast onto the train had no full review yet — this
-   is its first and only full review before production), and declaring `merge-only: true` and
+   is its first and only full review before production; with `release.productionReview` set, a
+   release unit that joined through its own reviewed pull request is excluded, `review-once.md`),
+   and declaring `merge-only: true` and
    `fix-exclusions: true`. `pr` owns the draft hold, the pre-ship checks its step 2 selects and the
    ready-flip that releases CI once; the untracked-deferral list it returns (an adopted run's too)
    goes to `release` step 2, never spliced. Fixes are committed on the snapshot, each passing §3's
@@ -139,7 +141,10 @@ advanced under a release-branch head.
 
 1. **Sync production into the source.** Without it the release branch's fix commits never reach
    `releaseSource`. Already `git merge-base --is-ancestor origin/<productionBranch>
-   origin/<releaseSource>` → nothing to do. Otherwise branch per `branchNaming` (slug
+   origin/<releaseSource>` → nothing to do. With `release.syncWorkflow` set, a workflow syncs it:
+   open nothing, re-fetch every minute until the source contains production (90 minutes at most);
+   that workflow's pull request left open (a conflict, a failed check) or the time running out →
+   STOP with its link for the owner. Otherwise branch per `branchNaming` (slug
    `sync-<productionBranch>-into-<releaseSource>`) from `origin/<releaseSource>`, `git merge --no-ff
    origin/<productionBranch>` (a conflict STOPS with the files), push, and invoke **`pr` driven**
    with base `<releaseSource>` passed explicitly, declaring `merge-only: true` (its merge commit is

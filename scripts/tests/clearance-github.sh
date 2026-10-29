@@ -58,7 +58,7 @@ fresh one
 run claim --purpose release
 if [ "$RC" -eq 0 ] && printf '%s' "$OUT" | grep -q '^CLEARED claude:me-1 2026-10-18T10:05:00Z' && [ -n "$(refsha)" ] \
    && [ "$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print(d["repo"], d["holder"])' "$CLEARANCE_RECORD")" = "o/r claude:me-1" ] \
-   && [ "$(stat -f %Lp "$CLEARANCE_RECORD" 2>/dev/null || stat -c %a "$CLEARANCE_RECORD")" = 600 ] \
+   && [ "$(stat -c %a "$CLEARANCE_RECORD" 2>/dev/null || stat -f %Lp "$CLEARANCE_RECORD")" = 600 ] \
    && [ "$(record phase)" = claimed ] && [ "$(record user)" = alice ] && [ "$(git branch -a | grep -c clearance)" = 0 ] && [ "$(git tag | wc -l | tr -d ' ')" = 0 ]; then
   ok "(1) claim wins → CLEARED <holder> <takenAt>; ref created (no branch, no tag listed); local record {repo, holder} mode 0600"
 else bad "(1) rc=$RC: $OUT"; fi
