@@ -147,7 +147,9 @@ Optional arguments — documentation switches and a scope: $ARGUMENTS
   profile word in `$ARGUMENTS`, else config `profile`, else `standard` — announced with its source.
   It sets the review's normal cycle target and fix floor and never loosens this step: a production
   release is a PR-path review under every profile, so the configured CLI engine and every in-scope
-  cloud reviewer run.
+  cloud reviewer run — unless `release.productionReview` or `release.lightRelease` is set: then read
+  `${CLAUDE_PLUGIN_ROOT}/skills/release/references/review-once.md` first; it decides how much of
+  this step runs.
 - Invoke **`review`** on the release PR, **declaring it DRIVEN** — undeclared, its standalone
   ask-gates and notifications pause an autonomous release — and, on a release branch, declaring
   `release-branch: true` (its 7.1 then hands a moved base back to the hotfix rule). Pass
@@ -194,8 +196,8 @@ Every `preShipChecks` entry with `when` ∈ {`releaseOnly`, `always`} (schema:
 `_preShipChecks_readme`) — the only thing validating those suites before production. **Absent or
 empty → an explicit no-op; say so.**
 
-- **Run each selected entry UNCONDITIONALLY** — paths are deliberately irrelevant here (`pathGlobs`
-  on a `releaseOnly` entry is ignored).
+- **Run each selected entry UNCONDITIONALLY** — except a `releaseOnly` entry with non-empty
+  `pathGlobs`, which runs only when the release diff matches (`review-once.md`).
 - **Sequentially, in array order**, each in the BACKGROUND with a long timeout (a foreground kill
   looks like a clean pass); surface each `timeoutNote` first.
 - **A red check is a STOP** — fix it or surface it as a release blocker with the failing spec names.

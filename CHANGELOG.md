@@ -8,6 +8,36 @@ for what each version component means here and how a release is cut.
 
 ## [Unreleased]
 
+## [3.13.0] — 2026-10-29
+
+### Added — opt-in release economies: review once, test once
+
+Every key below is optional; a repository that sets none sees no change.
+
+- **`release.productionReview`** (`reviewIdenticalTree`, `highRiskPaths`, `highRiskEngine`): when the
+  production pull request's tree is identical to the tree a full review settled on the way into
+  `releaseSource`, `release` skips the merge-gate review there and runs one pass of
+  `highRiskEngine` over the changed files under `highRiskPaths` only. A tree that differs (a fix on
+  the release branch) gets a contextual review of the difference. Contract:
+  `skills/release/references/review-once.md`.
+- **`release.lightRelease.disqualifyingPaths`**: a release whose diff touches none of these paths
+  gets one review round on its way into `releaseSource` and follows `productionReview` on the
+  production pull request. Required CI, the release clearance, the owner's go-ahead and deploy
+  approval and the post-deploy check are never skipped.
+- **`pathGlobs` on a `releaseOnly` pre-ship check** now means something: a non-empty list runs the
+  check only when the release diff touches a matching path (reported when skipped); an empty list
+  runs it at every release, as before.
+- **A support train that carries reviewed release units**: with
+  `epicIntegrationBranches.releaseTarget` set to the support train's branch, a finished epic joins
+  the train through its reviewed release pull request, and the train pull request's review covers
+  only the fast-merged one-offs, not the epics already reviewed.
+
+### Changed
+
+- Budget ratchets raised by exactly the text above: the `release` body 7,800 → 7,900,
+  `setup/references/config-defaults.md` 12,900 → 13,050; `release/references/review-once.md` is
+  budgeted at 1,200.
+
 ## [3.12.0] — 2026-10-19
 
 ### Changed — BREAKING: the `enterprise` delivery profile is retired
