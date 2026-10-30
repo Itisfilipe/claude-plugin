@@ -62,6 +62,15 @@ take the latest `mergedAt`. Never trust best-match ranking or a body match alone
    goes to `release` step 2, never spliced. Fixes are committed on the snapshot, each passing §3's
    fix-exclusion check first (a migration or deploy-configuration fix leaves the train: merge it to
    the source by its own pull request).
+4a. **Absorb late landings — before the ready-flip only.** While the snapshot pull request is a
+   draft, each progress report checks `git log --no-merges --oneline <trainSnapshot>..origin/<train>`
+   and names any late one-offs; on the owner's instruction it absorbs them at `<absorbAt>` (the
+   commit named, else the train's tip, said back): `<trainSnapshot>` must be its ancestor (else
+   STOP); §3's exclusion check over `<trainSnapshot>..<absorbAt>` (a match STOPS); `git merge
+   --no-ff <absorbAt>` into the snapshot (a conflict STOPS) and push; rewrite the marker to
+   `snapshot <absorbAt>`, the title's count and the body's list, so step 6 closes exactly what
+   shipped; add that range to the next review cycle as FULL scope with the ledger. Later landings
+   ship next time, said so. After the ready-flip the offer closes (a push would restart CI).
 5. **Merge** — first run §3's exclusion check over
    `git diff --name-only --no-renames <sourceBefore>...<reviewedHead>` (a match STOPS: such a change
    must not ride the train); then `gh pr merge <n> --merge --match-head-commit <reviewedHead>

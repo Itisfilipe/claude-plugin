@@ -8,6 +8,21 @@ for what each version component means here and how a release is cut.
 
 ## [Unreleased]
 
+### Added
+
+- **`review.localEffort`** (`initial`, `followUp`, `safety`): the reasoning tier the local CLI's
+  `<effort>` receives per round kind. The first full round keeps the repository's deepest tier, a
+  contextual follow-up over the fixes runs at the `followUp` tier, and a round verifying a fix for
+  a verified P1 or serious P2 runs at `safety` (absent → `initial`). Each launch records the tier
+  and the field that chose it in the ledger. Absent key → the task/risk route, as before. Contract:
+  `skills/review/references/delta-re-review.md` § Local effort per round.
+- **Absorb late train landings** (`release`, `release-branch.md` §1 step 4a): a one-off that lands
+  on the support train after the release cut its snapshot is named while the snapshot pull request
+  is still a draft, and on the owner's instruction the release merges the train at a named commit
+  into the snapshot, rewrites the range marker, title and body so close-out marks exactly what
+  shipped, and adds the new range to the next review cycle as full scope. After the ready-flip the
+  offer closes; later landings ship next time.
+
 ## [3.13.0] — 2026-10-29
 
 ### Added — opt-in release economies: review once, test once

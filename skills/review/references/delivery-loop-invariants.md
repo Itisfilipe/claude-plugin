@@ -95,6 +95,8 @@ E2. A base-mode launch uses the PR's actual base ref (`origin/<baseRefName>`); a
     launch receives the exact three-dot scope in its distilled stdin prompt.
 E3. Local reasoning effort is task/risk-sized (`medium` / `high` / `xhigh`) and substituted per
     invocation; a stale literal `xhigh` must not force maximum local effort on routine work.
+    `review.localEffort`, when set, names the tier per round kind — first full, follow-up, safety
+    (a P1 / serious-P2 fix check, never below the first round's tier) — and each launch logs it.
 E4. Findings have no GitHub thread — fixed pre-settle.
 E5. Every follow-up receives the cumulative ledger. A base-only template that cannot accept it gets
     no blind follow-up launch; Claude validates that delta and the degradation is reported.

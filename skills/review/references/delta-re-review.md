@@ -77,6 +77,16 @@ accepts stdin on every launch; setup probes that form. For one that carries both
 the initial base-mode launch removes `<context>` rather than substituting `-`, so it cannot wait
 on empty stdin. A CLI that rejects its configured contextual form is this-run degradation.
 
+## Local effort per round — `review.localEffort`
+
+Absent → `<effort>` is the route. Present, it sets the tier per launch kind, so a follow-up that
+reads only the fixes and the ledger does not pay the first round's tier again:
+**`initial`** — cycle 1 and any full-diff launch; **`followUp`** — a contextual follow-up;
+**`safety`** — a follow-up verifying a verified P1 / serious-P2 fix (absent → `initial`; it wins
+over `followUp`). An absent field falls back to the route. The ledger line records the tier and
+its field (`cycle 2 / Codex / <sha> / delta / xhigh (localEffort.followUp)`). Values pass
+verbatim; a literal tier in the template wins every round, reported once.
+
 ## Cycle accounting
 
 `targetAdversarialCycles` normally allows two useful cycles across Claude, local CLI, cloud, rebase,
