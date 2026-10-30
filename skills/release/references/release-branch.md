@@ -63,14 +63,18 @@ take the latest `mergedAt`. Never trust best-match ranking or a body match alone
    fix-exclusion check first (a migration or deploy-configuration fix leaves the train: merge it to
    the source by its own pull request).
 4a. **Absorb late landings — before the ready-flip only.** While the snapshot pull request is a
-   draft, each progress report checks `git log --no-merges --oneline <trainSnapshot>..origin/<train>`
-   and names any late one-offs; on the owner's instruction it absorbs them at `<absorbAt>` (the
-   commit named, else the train's tip, said back): `<trainSnapshot>` must be its ancestor (else
-   STOP); §3's exclusion check over `<trainSnapshot>..<absorbAt>` (a match STOPS); `git merge
-   --no-ff <absorbAt>` into the snapshot (a conflict STOPS) and push; rewrite the marker to
-   `snapshot <absorbAt>`, the title's count and the body's list, so step 6 closes exactly what
-   shipped; add that range to the next review cycle as FULL scope with the ledger. Later landings
-   ship next time, said so. After the ready-flip the offer closes (a push would restart CI).
+   draft (an adopted one included), each progress report runs `git fetch origin <train>` and
+   names any late one-offs in `git log --no-merges --oneline <trainSnapshot>..origin/<train>`.
+   On the owner's instruction — applied before `review` step 7's ready-flip, never after — it
+   resolves `<absorbAt>` to a SHA (the commit named, else the fetched train tip, said back): `<trainSnapshot>` must be its ancestor (else STOP); §3's exclusion check over the files
+   of the NEW train work only, `git log --no-merges --name-only --format=
+   <trainSnapshot>..<absorbAt> ^origin/<releaseSource>` (source commits are not train work; a
+   match STOPS); `git merge --no-ff <absorbAt>` into the snapshot (a conflict
+   STOPS) and push; rewrite the marker to `snapshot <absorbAt>`, the title's count and the body's
+   list, so step 6 closes exactly what shipped. The absorbed range then gets its first full
+   review before the flip: one FULL-scope cycle of every configured engine with the ledger,
+   outside the cycle budget (a required engine that cannot run STOPS). Later landings ship next time, said so. After the ready-flip the offer closes
+   (a push would restart CI).
 5. **Merge** — first run §3's exclusion check over
    `git diff --name-only --no-renames <sourceBefore>...<reviewedHead>` (a match STOPS: such a change
    must not ride the train); then `gh pr merge <n> --merge --match-head-commit <reviewedHead>

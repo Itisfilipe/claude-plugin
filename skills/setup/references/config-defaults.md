@@ -593,14 +593,15 @@ ambiguous cross-module work, critical boundaries or stubborn diagnosis. `<effort
 task; the template deliberately omits `--model`, leaving model choice to operator/managed policy.
 Read-only sandboxing and the disabled DevStride MCP are load-bearing.
 
-`localEffort` (optional) names the tier `<effort>` receives per round kind instead of the route:
+`localEffort` (an operator decision; setup never writes it) names the tier `<effort>` gets
+per round kind instead of the route. An illustration, not a default:
 
 ```json
 { "review": { "localEffort": { "initial": "max", "followUp": "xhigh", "safety": "max" } } }
 ```
 
 Per launch kind — first full round, follow-up, P1/serious-P2 fix check (absent → `initial`);
-needs `<effort>` in the template. Contract: `delta-re-review.md` § Local effort per round.
+`<effort>` in the template is preferred. Contract: `delta-re-review.md` § Local effort per round.
 
 Legacy base-mode `localCommand` remains supported: `<base>` receives the PR's actual base and a
 missing placeholder gets ` --base <value>` appended. It can run cycle 1, but a blind follow-up

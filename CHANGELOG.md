@@ -20,8 +20,9 @@ for what each version component means here and how a release is cut.
   on the support train after the release cut its snapshot is named while the snapshot pull request
   is still a draft, and on the owner's instruction the release merges the train at a named commit
   into the snapshot, rewrites the range marker, title and body so close-out marks exactly what
-  shipped, and adds the new range to the next review cycle as full scope. After the ready-flip the
-  offer closes; later landings ship next time.
+  shipped, and gives the absorbed range its own full review by every configured engine, outside
+  the cycle budget, before the ready-flip. Only the new train work is checked against the
+  exclusions; after the ready-flip the offer closes and later landings ship next time.
 
 ## [3.13.0] — 2026-10-29
 

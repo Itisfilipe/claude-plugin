@@ -124,7 +124,7 @@ reports. In one turn:
   on the security-lens footing (`mandatory-lenses.md`), reported `mandatory lens <name>: ran (N
   findings)`.
 - **Local CLI** (on the roster only) — `review.localCommand` in the worktree, `<base>` =
-  `origin/<baseRefName>`, `<effort>` = the route; a context template gets scope, ledger and each
+  `origin/<baseRefName>`, `<effort>` per `delta-re-review.md` § Local effort per round; a context template gets scope, ledger and each
   matched lens `question` (a hypothesis) on stdin, a legacy base-only one drops `<context>`. Record
   the launch head. **Background, long timeout.** Unavailable → degradation. It spends cycle 1 and
   local round 1; ordinary relaunches respect `maxLocalReviewRounds` (under
