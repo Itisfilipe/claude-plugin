@@ -1189,6 +1189,182 @@
         "branch": "epic/I200",
         "create": true
       }
+    },
+    {
+      "name": "direct commits: a story under an epic lands on the base branch, its integration branch ignored",
+      "config": {
+        "directCommits": {
+          "enabled": true
+        }
+      },
+      "chain": [
+        {
+          "number": "I201",
+          "title": "A story",
+          "workType": "Story"
+        },
+        {
+          "number": "I200",
+          "title": "Checkout redesign",
+          "workType": "Epic"
+        }
+      ],
+      "heads": [
+        "develop",
+        "jane/26-10-01/epic-I200-checkout-redesign"
+      ],
+      "expect": {
+        "kind": "direct",
+        "branch": "develop",
+        "create": false
+      }
+    },
+    {
+      "name": "direct commits: a one-off lands on the base branch, never the support train",
+      "config": {
+        "directCommits": {
+          "enabled": true
+        }
+      },
+      "chain": [
+        {
+          "number": "I300",
+          "title": "A one-off",
+          "workType": "Defect"
+        }
+      ],
+      "heads": [
+        "develop",
+        "train/support"
+      ],
+      "oneOff": true,
+      "expect": {
+        "kind": "direct",
+        "branch": "develop",
+        "create": false
+      }
+    },
+    {
+      "name": "direct commits: naming the base branch explicitly is the same landing",
+      "config": {
+        "directCommits": {
+          "enabled": true
+        }
+      },
+      "chain": [
+        {
+          "number": "I300",
+          "title": "A one-off",
+          "workType": "Defect"
+        }
+      ],
+      "heads": [
+        "develop"
+      ],
+      "explicit": "develop",
+      "expect": {
+        "kind": "direct",
+        "branch": "develop",
+        "create": false
+      }
+    },
+    {
+      "name": "direct commits: any other explicit branch is refused",
+      "config": {
+        "directCommits": {
+          "enabled": true
+        }
+      },
+      "chain": [
+        {
+          "number": "I300",
+          "title": "A one-off",
+          "workType": "Defect"
+        }
+      ],
+      "heads": [
+        "develop",
+        "jane/topic"
+      ],
+      "explicit": "jane/topic",
+      "expect": {
+        "kind": "refuse"
+      }
+    },
+    {
+      "name": "direct commits: a non-leaf item is still refused",
+      "config": {
+        "directCommits": {
+          "enabled": true
+        }
+      },
+      "chain": [
+        {
+          "number": "I200",
+          "title": "Checkout redesign",
+          "workType": "Epic"
+        }
+      ],
+      "heads": [
+        "develop"
+      ],
+      "expect": {
+        "kind": "refuse"
+      }
+    },
+    {
+      "name": "direct commits switched off: the epic integration branch applies again",
+      "config": {
+        "directCommits": {
+          "enabled": false
+        }
+      },
+      "chain": [
+        {
+          "number": "I201",
+          "title": "A story",
+          "workType": "Story"
+        },
+        {
+          "number": "I200",
+          "title": "Checkout redesign",
+          "workType": "Epic"
+        }
+      ],
+      "heads": [
+        "develop",
+        "jane/26-10-01/epic-I200-checkout-redesign"
+      ],
+      "expect": {
+        "kind": "epic",
+        "branch": "jane/26-10-01/epic-I200-checkout-redesign",
+        "create": false
+      }
+    },
+    {
+      "name": "direct commits on the production branch: each push needs the owner's yes",
+      "config": {
+        "directCommits": {
+          "enabled": true
+        },
+        "baseBranch": "master"
+      },
+      "chain": [
+        {
+          "number": "I300",
+          "title": "A one-off",
+          "workType": "Defect"
+        }
+      ],
+      "heads": [
+        "master"
+      ],
+      "expect": {
+        "kind": "direct",
+        "branch": "master",
+        "create": false,
+        "production": true
+      }
     }
   ],
   "targetDefaults": {

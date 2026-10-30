@@ -1,6 +1,6 @@
 ---
 name: setup
-description: Set the delivery loop up for this repository — inspecting it for everything answerable without asking (package manager, verify commands, CI provider and draft gating, branches, review engines), mapping your DevStride work types onto the loop's roles, asking only about what is left, and writing .claude/ds-config.json, which a re-run merges into rather than overwrites.
+description: Set the delivery loop up for this repository — inspect everything answerable without asking (package manager, verify commands, CI and draft gating, branches, review engines), map your DevStride work types onto the loop's roles, ask only what is left, and write .claude/ds-config.json, merging into an existing one.
 user-invocable: true
 disable-model-invocation: true
 ---
@@ -167,12 +167,10 @@ is then the local gate.
   `review.localCommand` and optional `review.localAssistCommand`; for an engine the user names,
   build one to the contract and confirm it. Found → `ambiguous` until confirmed; carry
   `review.localReviewerName`. Existing base-only/literal-effort commands remain supported but
-  get a migration proposal carrying the tradeoff, never a silent rewrite: context mode is not
-  strictly better, and a repository extracting structured findings loses them. **Never propose
-  the migration when the effective `maxLocalReviewRounds` is 1** (the profile's value, or
-  `profileOverrides.maxLocalReviewRounds`) — the cumulative ledger context mode exists to carry
-  has nothing to carry. **Not found → `unknown`, never detected
-  `null`** — report what was probed.
+  get a migration proposal carrying the tradeoff (structured findings are lost), never a silent
+  rewrite. **Never propose the migration when the effective `maxLocalReviewRounds` is 1** (the
+  profile's value, or `profileOverrides.maxLocalReviewRounds`). **Not found → `unknown`, never
+  detected `null`** — report what was probed.
 - **Cloud reviewers** (`review.automatedReviewers`) — possible when origin is GitHub and
   `gh auth status` succeeds. **An entry is more than a name**: a `requested_reviewer` bot is
   requested by its `graphqlBotId`; missing fields silently request nothing — take the complete
@@ -243,9 +241,7 @@ One row per configuration key: `key` (dotted path), `value` (in the key's shape;
 nothing was detected), `evidence` (the file read or command run — never empty), `status`
 (`detected` / `ambiguous` / `unknown`), `candidates` (only when `ambiguous` — every plausible
 answer), `existing` (only when the config already sets the key). **This shape is the contract**:
-every `detected` row becomes a prefilled default, every `ambiguous`/`unknown` row a question —
-and a key that produced no row is a key nobody looked at, distinguishable from a key with no
-answer.
+every `detected` row becomes a prefilled default, every `ambiguous`/`unknown` row a question.
 
 ## Phase B — report what was found
 
@@ -280,7 +276,7 @@ what the value is for. **`detected` rows are confirmed in bulk** — one list WI
 evidence, one yes. **An explicit answer always beats a detection** — the override is written,
 never re-applied.
 
-Four things no inspection can reach, asked every run — the first one first:
+Five things no inspection can reach, asked every run — the first one first:
 
 - **Which delivery profile?** (`profile`) — three options from the contract's table
   (`${CLAUDE_PLUGIN_ROOT}/skills/plan/references/delivery-profiles.md` — read it before
@@ -292,6 +288,8 @@ Four things no inspection can reach, asked every run — the first one first:
   to `baseBranch` unasked; name the branch. The user may answer `ask` (no profile
   produces it): the loop then asks the owner once per release unit. The
   profile is never `detected`.
+- **How does work land on `baseBranch`?** (`directCommits.enabled`) — read
+  `${CLAUDE_PLUGIN_ROOT}/skills/setup/references/config-defaults.md` §Direct commits before asking.
 - **What does merging to the production branch actually do?** (`release.autoDeployOnMerge`) —
   one plain-English sentence; the release skill quotes it back at the production gate. Nothing
   can detect it; no sensible default exists.
@@ -327,6 +325,7 @@ Phase D; else the shipped default.
 |---|---|
 | `baseBranch`, `hotfixBaseBranch`, `protectedBranches` | From A6; `protectedBranches` **always** holds base, production, release-source |
 | `integrationBranch` | `null` — per-release-unit derivation is the default |
+| `directCommits` | `{ "enabled": <the Phase D answer> }`, always written |
 | `profile` | The Phase D answer, the word itself — always written, `standard` included |
 | `epicIntegrationBranches` | Verbatim from the defaults reference; `autoRelease` at the profile's value or an explicit `ask`; `fastStoryMerges.enabled` per below |
 | `verify` | `typecheck` (array), `test`, `lint`, `testSingle`, `testDir`, `skipDuringStoryBuilds: []` |

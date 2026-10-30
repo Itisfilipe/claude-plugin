@@ -1,6 +1,6 @@
 ---
 name: build-item
-description: "Orchestrate one DevStride work item end-to-end: select, branch, build, review, merge, and completion ritual — epic stories batch onto the epic's integration branch in fast develop mode (local engines, no per-story PR) and the fully-reviewed epic release PR carries them to develop; one-off items ship to develop with the full per-story PR ritual, or batch on a configured support train"
+description: "Orchestrate one DevStride work item end-to-end — select, branch, build, review, merge, completion ritual — onto its epic's integration branch, its own PR, a support train, or straight onto the base branch"
 ---
 
 **Human output.** Read `${CLAUDE_PLUGIN_ROOT}/skills/build-item/references/plain-language-output.md` once per top-level run; composed skills reuse it. Apply it to every message.
@@ -94,6 +94,9 @@ render in a session or after a compaction.**
 
 Read "the working base" wherever a step says develop; re-derive it per RELEASE UNIT. Precedence:
 
+0. **`directCommits.enabled`** → `baseBranch`; read
+   `${CLAUDE_PLUGIN_ROOT}/skills/build-item/references/direct-commits.md` first; it replaces steps
+   2, 4, 5 and 8.
 1. An explicit branch in `$ARGUMENTS`, or config `integrationBranch` non-null.
 2. **A release-unit ancestor AND `epicIntegrationBranches.enabled`** → its integration branch. Walk
    `parentNumber` up, typing each ancestor with `get_item`, matching `hierarchyRoles.releaseUnit`
@@ -181,7 +184,7 @@ untracked deferrals, dismissed findings. Deferrals + deviations → PR body (4b)
 
 Integration branch → **4a** when `fastStoryMerges.enabled` is `true`, or ABSENT under `prototype` (a
 present `false` wins, routes to 4b and is reported). `baseBranch` → **4b**, every profile; the train
-per `supportTrain.fastMerges`. Never mix: 4a toward develop reaches production never cloud-reviewed.
+per `supportTrain.fastMerges`. Never mix.
 
 ### 4a. FAST DEVELOP MODE — epic-branch stories, no per-story PR
 
@@ -288,7 +291,7 @@ is `review` step 7's; step 5 never reads `skipping` as green.
   effect, destination and live state, checks/CI, risk, next action. Otherwise
   `Built / Checked / Next`: outcomes, checks run or skipped, link or SHA, CI, profile, remaining counts, next action.
 - Release unit at **zero** on its integration branch → **run step 8 now**; then step 0. DRY-CHAIN →
-  exit and report.
+  exit and report; `feedback: true` → then `/devstride:feedback <every item built>`.
 
 ## 8. EPIC RELEASE — epic branch → develop, fully reviewed
 

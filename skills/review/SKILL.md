@@ -1,6 +1,6 @@
 ---
 name: review
-description: Run a PR through every configured review engine (as configured in `review.*`), address every verified finding, resolve the addressed threads, release CI and settle it green, then report or notify
+description: Run a PR through every configured review engine, address every verified finding, resolve the addressed threads, release CI and settle it green, then report or notify
 ---
 
 **Human output.** Read `${CLAUDE_PLUGIN_ROOT}/skills/build-item/references/plain-language-output.md` once per top-level run; composed skills reuse it. Apply it to every message.
@@ -12,8 +12,7 @@ CI released once and settled green. `pr` composes it; standalone it runs as
 $ARGUMENTS
 
 **Read `${CLAUDE_PLUGIN_ROOT}/skills/review/references/github-review-api.md` when you execute a
-step that touches the GitHub review APIs** — the exact queries and evidence; every rule here exists
-because the alternative fails *silently*.
+step that touches the GitHub review APIs.**
 
 ## Hard floors — no profile, override or caller removes these
 
@@ -100,6 +99,8 @@ definition or a deferral route.**
   The caller owns the merge. Never launch `review.localAssistCommand` here (that opinion is
   `ultracode-build`'s). Missing risk-screen evidence → the full PR path. Runs with no CLI engine
   too. Skips 0–2 and 6–8.
+- **DIRECT** (`directCommits`): first read
+  `${CLAUDE_PLUGIN_ROOT}/skills/build-item/references/direct-commits.md` §The DIRECT review mode.
 - **PRE-SHIP RESUME** (`pr`/`release` step 2c) — the return from a **7.1b** hold. **Start at 7.1**:
   re-resolve the PR, re-run 7.1's base/patch check and the paginated zero-unresolved check, flip,
   settle. A changed patch → step 5's contextual wave through 3–6.5, back to 7.1, zero threads, flip.

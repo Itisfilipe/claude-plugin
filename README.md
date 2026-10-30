@@ -9,6 +9,16 @@ merge, and release — against your own repository and your own DevStride organi
 > sign in once. `/devstride:setup` then configures the plugin for your repository and proves the
 > config by running it.
 
+## Differences from upstream
+
+This fork is [devstride/claude-plugin](https://github.com/devstride/claude-plugin) plus one commit,
+rebased on each upstream release. Its version is upstream's plus a patch bump.
+
+| Change | What it does |
+|---|---|
+| `directCommits.enabled` | Lands every item straight on `baseBranch`, with no branches or pull requests. Each item gets the full review and the full local suite before its push, and CI runs after it lands. Contract: `skills/build-item/references/direct-commits.md`. |
+| `/devstride:feedback <item>` | Logs what a run on one work item cost (tokens and time per session, fork, agent and model) and where it went wrong, with a suggested plugin fix per problem. With `"feedback": true` in `.claude/ds-config.json`, `build-item` runs it at the end of every run. |
+
 ## How it works, and why
 
 A coding agent can already write a good change. The hard part is everything around it: knowing
@@ -272,6 +282,7 @@ repository's real branch names rather than copying those two values:
 | `release.releaseBranchFixExclusions` | Optional. Paths a fix on a release branch may not touch (deploy configuration, migrations): such a fix goes through the source and the release is re-cut. |
 | `supportTrain.branch` | Optional. A long-lived branch one-off work batches on; with `release.mergeTrainBeforeCut` it ships with every release through its own reviewed pull request. Absent: one-offs go to `baseBranch`. |
 | `supportTrain.fastMerges` | Optional. A one-off on the train merges there after its local risk check and gate, without a pull request of its own; the train's pull request is its full review. Absent: a pull request into the train. |
+| `directCommits.enabled` | Optional. `true` lands every item straight on `baseBranch`: no feature branches, integration branches, support train or pull requests. Each item then gets the full review and the full local suite before its push, and CI runs after the code lands. Absent: pull requests. |
 | `release.mergeTrainBeforeCut` | Optional. Each release first merges the support train into the source through its own reviewed pull request. Without it a configured train is bypassed, so one-offs go to `baseBranch`. |
 | `conventionsDoc` | Your coding-standards file. The build skill reads it and obeys it — this is how the loop writes code that looks like yours. |
 | `verify.typecheck` | Type checks; unchanged-tree receipts prevent identical reruns. |
@@ -469,7 +480,7 @@ jq -n --slurpfile c .claude/ds-config.json '{config: $c[0], heads: ["develop"], 
 under a committed token budget, with rationale moved to per-skill references loaded only at
 the step that needs them; the full before/after table is in the CHANGELOG.
 
-Current version: **3.14.0** — see [CHANGELOG.md](CHANGELOG.md) for what changed, and
+Current version: **3.14.1** — see [CHANGELOG.md](CHANGELOG.md) for what changed, and
 [RELEASING.md](RELEASING.md) for how releases are cut.
 
 **Getting a new release.** Claude's marketplace auto-update is off by default for a manually added

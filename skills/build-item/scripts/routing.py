@@ -16,10 +16,14 @@ Every subcommand reads one JSON object on stdin and writes one JSON object on st
   excluded     {"config", "files":[…]}                        -> {"excluded":[…]}
   target       {"config", "chain":[{"number","title","workType"}…], "heads":[…], "prefix", "date",
                 "explicit"?, "changedFiles"?, "oneOff"?, "roles"?, "epicSlug"?}
-               -> {"kind": explicit|integration|epic|train|base|ask|refuse, "branch"?, "create"?,
+               -> {"kind": direct|explicit|integration|epic|train|base|ask|refuse, "branch"?, "create"?,
                    "candidates"?, "reason"}
 
-`target` precedence: the item must be a leaf type (else refuse) → an explicit branch (refused when
+`target` precedence: the item must be a leaf type (else refuse) → `directCommits.enabled`: every
+leaf is committed on `baseBranch` itself, no feature branch, no pull request (an explicit branch
+other than `baseBranch` is refused; integration branches and the support train are ignored, and
+the reason names them; `production: true` when `baseBranch` is `release.productionBranch`, whose
+pushes need the owner's yes) → an explicit branch (refused when
 it is the production branch or the release source, matches `protectedBranches` or
 `release.releaseBranchPattern`, or is not on origin) → `integrationBranch` → for an item that is NOT a
 one-off, the NEAREST release-unit ancestor's integration branch when `epicIntegrationBranches.enabled`
@@ -191,6 +195,23 @@ def cmd_target(req):
     if item.get("workType") not in leaf:
         return {"kind": "refuse", "reason": "%s is %s, not one of %s" % (
             item.get("number"), item.get("workType") or "a workstream", " / ".join(leaf))}
+    if section(config, "directCommits").get("enabled") is True:
+        explicit = req.get("explicit")
+        if explicit and explicit != base:
+            return {"kind": "refuse", "reason": "directCommits is on: work lands on %s, never on %s" % (base, explicit)}
+        ignored = [key for key, value in (
+            ("integrationBranch", config.get("integrationBranch")),
+            ("epicIntegrationBranches.enabled", section(config, "epicIntegrationBranches").get("enabled") is True),
+            ("supportTrain.branch", section(config, "supportTrain").get("branch")),
+        ) if value]
+        reason = "directCommits is on: committed on %s, no feature branch or pull request" % base
+        if ignored:
+            reason += " (ignored: %s)" % ", ".join(ignored)
+        answer = {"kind": "direct", "branch": base, "create": False, "reason": reason}
+        if base == section(config, "release").get("productionBranch"):
+            answer["production"] = True
+            answer["reason"] += "; it is the production branch, so each push needs the owner's yes"
+        return answer
     release = section(config, "release")
     files = req.get("changedFiles") or []
     if not isinstance(files, list) or not all(isinstance(f, str) for f in files):

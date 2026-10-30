@@ -8,6 +8,83 @@ for what each version component means here and how a release is cut.
 
 ## [Unreleased]
 
+## [3.14.1] — 2026-10-30
+
+### Added — direct commits, for repositories that do not use pull requests
+
+- **`directCommits.enabled`** (new key, absent = `false`). `true` lands every leaf item, plan story
+  and one-off alike, straight on `baseBranch`: no feature branch, no integration branch, no support
+  train, no pull request. The contract is the new
+  `skills/build-item/references/direct-commits.md`; `build-item` reads it at step 0, and it replaces
+  steps 2, 4, 5 and 8.
+- **Every leaf is a merge boundary under direct commits.** Nothing reviews the code after it lands,
+  so each leaf gets the full review (Claude adversarial, the local CLI, matched mandatory lenses)
+  and the full local suite (`verify.test`, never only touched suites) before its push, under every
+  profile. Cloud reviewers need a pull request and are scoped out, announced. CI is observed on the
+  pushed commit; a red run stops the loop and goes to the owner, who decides between revert and
+  fix-forward.
+- **`review` gains a DIRECT mode**: steps 1, 3, 4, 5 and 6.5 over `origin/<baseBranch>..HEAD`,
+  fixes committed and never pushed, the lessons write allowed on the base branch, dismissals
+  returned to the caller instead of posted.
+- **`routing.py target` answers `kind: direct`** when the key is on, refuses an explicit branch
+  other than `baseBranch`, and names the integration-branch and support-train keys it ignores.
+  When `baseBranch` is also `release.productionBranch` it answers `production: true`, and every
+  push then waits for the owner's explicit yes. Seven new fixtures in `routing-fixtures.json`.
+- **`setup` asks how work lands on `baseBranch`** in Phase D, probing GitHub branch protection
+  first: a base branch that requires pull requests only gets `false`. The question and the probe
+  live in `config-defaults.md` §Direct commits.
+
+### Added — run feedback for maintainers
+
+- **`/devstride:feedback <items>`** logs what a run on its work items cost: tokens and elapsed time
+  per session, fork, agent and model, read from the project's Claude Code transcripts, plus the
+  flow, repeats and what the user had to correct, each problem with a suggested plugin fix. It runs
+  when invoked, or at the end of every `build-item` run with `"feedback": true` in the config
+  (absent = `false`, never written by `setup`), in a fork on Sonnet, writes to the untracked
+  `$(git rev-parse --git-common-dir)/devstride-feedback.md`, and never edits the plugin or the config.
+
+### Changed
+
+- To fit the new pointers under the hard body ceilings, three bodies drop rationale their
+  references already hold: `review` (the GitHub-API "fails silently" note, in
+  `github-review-api.md`), `setup` (two clauses of A7's migration rationale and one of the prefill
+  contract's), and `build-item` (its frontmatter description is shorter, and "Never mix" keeps its
+  rule without the reason, which `epic-release.md` explains).
+- **Rebased onto upstream 3.14.0 as one commit carrying only direct commits.** The fork's own
+  earlier 3.13.0 also shipped `devstrideServer` with `hooks/server-gate.sh`, `verify.lint` as an
+  array, and setup proposals for review lenses, the review pipeline and non-Node checks; those are
+  gone. A leftover `devstrideServer` is ignored: a local or project `devstride` entry for the same
+  URL already replaces the bundled server. An array `verify.lint` must become one command.
+
+### Cost
+
+<!-- scripts/measure-cost.sh --table --since devstride--v3.14.0 @ 3193790, method: tokens = ceil(utf8_bytes / 3); bytes as `wc -c` -->
+| File | bytes@devstride--v3.14.0 | tokens@devstride--v3.14.0 | bytes now | tokens now | Δ tokens | budget |
+|---|---:|---:|---:|---:|---:|---:|
+| skills/setup/SKILL.md | 32,096 | 10,699 | 32,045 | 10,682 | -17 | 10,700 |
+| skills/review/SKILL.md | 23,987 | 7,996 | 23,999 | 8,000 | +4 | 8,000 |
+| skills/build-item/SKILL.md | 23,999 | 8,000 | 24,000 | 8,000 | +0 | 8,000 |
+| skills/doctor/SKILL.md | 23,987 | 7,996 | 23,987 | 7,996 | +0 | 8,000 |
+| skills/plan/SKILL.md | 23,888 | 7,963 | 23,888 | 7,963 | +0 | 8,000 |
+| skills/release/SKILL.md | 23,659 | 7,887 | 23,659 | 7,887 | +0 | 7,900 |
+| skills/rebalance/SKILL.md | 17,406 | 5,802 | 17,406 | 5,802 | +0 | 5,900 |
+| skills/ultracode-build/SKILL.md | 14,470 | 4,824 | 14,470 | 4,824 | +0 | 4,900 |
+| skills/pr/SKILL.md | 11,289 | 3,763 | 11,289 | 3,763 | +0 | 3,800 |
+| skills/rationalize-gantt/SKILL.md | 7,936 | 2,646 | 7,936 | 2,646 | +0 | 2,700 |
+| skills/ci-audit/SKILL.md | 7,570 | 2,524 | 7,570 | 2,524 | +0 | 2,600 |
+| skills/create-defect/SKILL.md | 7,481 | 2,494 | 7,481 | 2,494 | +0 | 2,500 |
+| skills/branch-hotfix/SKILL.md | 6,321 | 2,107 | 6,321 | 2,107 | +0 | 2,200 |
+| skills/insert-defect/SKILL.md | 4,714 | 1,572 | 4,714 | 1,572 | +0 | 1,600 |
+| skills/comprehend-plan/SKILL.md | 4,575 | 1,525 | 4,575 | 1,525 | +0 | 1,600 |
+| skills/insert-story/SKILL.md | 4,037 | 1,346 | 4,037 | 1,346 | +0 | 1,400 |
+| skills/feedback/SKILL.md (added) | — | — | 4,029 | 1,343 | +1343 | 1,400 |
+| skills/create-story/SKILL.md | 3,999 | 1,333 | 3,999 | 1,333 | +0 | 1,400 |
+| skills/push/SKILL.md | 3,005 | 1,002 | 3,005 | 1,002 | +0 | 1,100 |
+| skills/update/SKILL.md | 2,799 | 933 | 2,799 | 933 | +0 | 1,000 |
+| skills/branch-feature/SKILL.md | 2,577 | 859 | 2,577 | 859 | +0 | 900 |
+| alwaysOn.context (skill listing) | 3,697 | 1,233 | 3,621 | 1,207 | -26 | 1,300 |
+| **total (bodies)** | 249,795 | 83,271 | 253,786 | 84,601 | +1330 | |
+
 ## [3.14.0] — 2026-10-30
 
 ### Added

@@ -127,6 +127,38 @@ repository that cannot safely use them — and `autoRelease` is the profile's, s
   `null` → the story keeps its status. An organization with no status of that name keeps the
   story's status too, and the loop says so; the comment and the git history still record it.
 
+## Direct commits
+
+```json
+{ "directCommits": { "enabled": false } }
+```
+
+A Phase D question, asked every run and never `detected`: **does work reach `baseBranch` through
+pull requests, or is it committed and pushed straight to it?** Pull requests (`false`) is the
+default and listed first; a re-run prefills the file's value.
+
+- **Probe before asking.** `gh api repos/{owner}/{repo}/branches/<baseBranch>/protection` returning
+  `required_pull_request_reviews`, or `gh api repos/{owner}/{repo}/rules/branches/<baseBranch>`
+  listing a `pull_request` rule, means GitHub refuses direct pushes: offer only `false` and say why.
+  A 404 from the first means no classic protection; a 403 or a non-GitHub origin means the probe
+  could not tell — say so and ask anyway.
+- **`true` → say what it changes before writing**: integration branches, the support train and
+  per-story pull requests go unused; every leaf gets the full review and the full `verify.test`
+  before its push; CI runs after the code lands, and a red run comes back to the owner. The
+  contract is `${CLAUDE_PLUGIN_ROOT}/skills/build-item/references/direct-commits.md`.
+- **`true` leaves `epicIntegrationBranches` and `supportTrain` as they are**, ignored while it
+  holds; switching back to `false` brings them back unchanged.
+
+## Run feedback
+
+```json
+{ "feedback": false }
+```
+
+Never asked and never written by `setup`; a maintainer sets it by hand. `true` → when `build-item`
+ends a run it invokes `/devstride:feedback` with every item it built, which appends the run's cost
+and problems to the untracked `$(git rev-parse --git-common-dir)/devstride-feedback.md`.
+
 ## Deferred defects
 
 ```json
@@ -697,7 +729,8 @@ says where the file goes.
 
 ## Cited by
 
-- `setup` SKILL.md — Phase E, the config write ("read it before writing and copy verbatim").
+- `setup` SKILL.md — Phase E, the config write ("read it before writing and copy verbatim"), and
+  Phase D's direct-commits question ("read … §Direct commits before asking").
 - `doctor` SKILL.md — §4's config audit (the profile contradictions, and the `localEnvironment`
   reasoning behind the `recreate`/`migrate` warning).
 - `plan/references/delivery-profiles.md` — the `profile` key setup writes.
