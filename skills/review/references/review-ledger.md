@@ -23,7 +23,7 @@ Cycle anchors:
 
 Heads reviewed:
 - cycle 1 / Claude / <sha> / <scope> / <model alias + effort>
-- cycle 1 / Codex / <sha> / <scope> / <effort>
+- cycle 1 / Codex / <sha> / <scope> / <effort> (<source>)
 - cycle 1 / Copilot / <sha> / <review id>
 - cycle N / <engine> / <sha> / <scope-or-review id>
 

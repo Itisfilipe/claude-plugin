@@ -80,7 +80,8 @@ Announce the roster by name. **Configured-but-failing is NOT not-configured**: a
 silent configured reviewer is this-run degradation, reported; an unconfigured engine is silent by
 design. A missing engine narrows the roster, never a hard stop — except a fast story merge needs a
 completed local risk screen (`build-item` step 4). **No config file → CLAUDE-ONLY**, said.
-Substitute `<effort>` from the task/risk route; a legacy Codex template's literal
+Substitute `<effort>` from the task/risk route (or `review.localEffort`, `delta-re-review.md`);
+a legacy Codex template's literal
 `model_reasoning_effort` is replaced per invocation (stale config never pins every task to `xhigh`;
 never pick its model). **Read `${CLAUDE_PLUGIN_ROOT}/skills/review/references/roster-and-modes.md`
 when a roster resolves to fewer engines than the config declares, or before changing a mode
@@ -123,7 +124,7 @@ reports. In one turn:
   on the security-lens footing (`mandatory-lenses.md`), reported `mandatory lens <name>: ran (N
   findings)`.
 - **Local CLI** (on the roster only) — `review.localCommand` in the worktree, `<base>` =
-  `origin/<baseRefName>`, `<effort>` = the route; a context template gets scope, ledger and each
+  `origin/<baseRefName>`, `<effort>` per `delta-re-review.md` § Local effort per round; a context template gets scope, ledger and each
   matched lens `question` (a hypothesis) on stdin, a legacy base-only one drops `<context>`. Record
   the launch head. **Background, long timeout.** Unavailable → degradation. It spends cycle 1 and
   local round 1; ordinary relaunches respect `maxLocalReviewRounds` (under

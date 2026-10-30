@@ -97,7 +97,8 @@ Optional arguments — documentation switches and a scope: $ARGUMENTS
 - **0b. Merge the support train** when `release.mergeTrainBeforeCut` is `true` and no release BRANCH
   was adopted (else nothing merges first): a snapshot of the train (the live train keeps moving) in
   its own draft PR into `releaseSource`, fully reviewed, CI once, merged, and every one-off it
-  carried closed — `release-branch.md` §1. Nothing ahead → a reported no-op.
+  carried closed — `release-branch.md` §1. Nothing ahead → a reported no-op. A late train landing
+  is offered while that PR is a draft, absorbed on the owner's word (§1 4a).
 - `git fetch origin master develop`; `origin/develop` not ahead of `origin/master` → STOP, nothing to
   release.
 - **No freeze.** Open PRs into `releaseSource` are neither settled, parked nor waited for: the

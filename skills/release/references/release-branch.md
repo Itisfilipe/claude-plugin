@@ -62,9 +62,22 @@ take the latest `mergedAt`. Never trust best-match ranking or a body match alone
    goes to `release` step 2, never spliced. Fixes are committed on the snapshot, each passing §3's
    fix-exclusion check first (a migration or deploy-configuration fix leaves the train: merge it to
    the source by its own pull request).
-5. **Merge** — first run §3's exclusion check over
-   `git diff --name-only --no-renames <sourceBefore>...<reviewedHead>` (a match STOPS: such a change
-   must not ride the train); then `gh pr merge <n> --merge --match-head-commit <reviewedHead>
+4a. **Absorb late landings — before the ready-flip only.** While the snapshot pull request is a
+   draft (an adopted one included), each progress report runs `git fetch origin <releaseSource> <train>` and
+   names any late one-offs in `git log --no-merges --oneline <trainSnapshot>..origin/<train>`.
+   On the owner's instruction — applied before `review` step 7's ready-flip, never after — it
+   resolves `<absorbAt>` to a SHA (the commit named, else the fetched train tip, said back): `<trainSnapshot>` must be its ancestor (else STOP); §3's exclusion check over the files
+   of the NEW train work only, `git log --no-merges --name-only --format=
+   <trainSnapshot>..<absorbAt> ^origin/<releaseSource>` (source commits are not train work; a
+   match STOPS); `git merge --no-ff <absorbAt>` into the snapshot (a conflict
+   STOPS) and push; rewrite the marker to `snapshot <absorbAt>`, the title's count and the body's
+   list, so step 6 closes exactly what shipped. The absorbed range then gets its first full
+   review before the flip: one FULL-scope cycle of every configured engine with the ledger,
+   outside the cycle budget (a required engine that cannot run STOPS). Later landings ship next time, said so. After the ready-flip the offer closes
+   (a push would restart CI).
+5. **Merge** — first `git fetch origin <releaseSource>` and run §3's exclusion check over
+   `git diff --name-only --no-renames origin/<releaseSource>...<reviewedHead>` (source-owned
+   changes are not train work; a match STOPS); then `gh pr merge <n> --merge --match-head-commit <reviewedHead>
    --delete-branch` (the snapshot is disposable). **Never a direct push to `releaseSource`**: its
    own required checks run on the pull request. A verified P1 or serious P2 that is not fixed STOPS
    the release.
