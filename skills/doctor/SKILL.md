@@ -299,8 +299,8 @@ Neither set → **N/A**, not a failure: the release skill's docs pass reports it
   No `check` mode → FAIL naming the template to rebuild from.
 - **A legacy `release.docsRepo` block**, with or without a `docs` block beside it → FAIL: the
   release skill never acts on it. Fix: `/devstride:setup docs` (migrates and removes it).
-- **`release.deployVerification`** — set → its first token resolves (§4's rule), never run.
-  Unset → the release skill asks the owner to confirm the deploy; not a gap.
+- **`release.deployApproval`, `release.deployVerification`** — each set → its first token
+  resolves (§4's rule), never run. Unset → not a gap.
 - **`release.postDeployCheckSkill`** — set → `.claude/skills/<name>/SKILL.md` must exist
   (missing → FAIL, a dangling hook; contract:
   `${CLAUDE_PLUGIN_ROOT}/skills/release/references/post-deploy-check.md`). Unset → N/A; the close-out

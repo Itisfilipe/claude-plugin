@@ -21,6 +21,7 @@ cites it rather than restating it.
     "updateOnEpicRelease": false
   },
   "release": {
+    "deployApproval": null,
     "deployVerification": null
   }
 }
@@ -31,6 +32,7 @@ cites it rather than restating it.
 | `docs.updateSkill` | Name of the local skill (a directory under `.claude/skills/`) that brings the repository's core documentation in line with a shipped delta. `null` or absent: no documentation system is registered; every docs phase of the loop is skipped and says so. |
 | `docs.releaseNotesSkill` | Name of the local skill that writes and publishes a release note. `null` or absent: release notes cannot be requested; `--release-notes` on `release` reports itself unavailable rather than improvising. |
 | `docs.updateOnEpicRelease` | `false` by default. `true` makes `build-item` step 8 invoke `docs.updateSkill` after a release-unit (epic) release pull request merges, so documentation moves with each release unit rather than only at the production cut. |
+| `release.deployApproval` | Optional command approving a waiting deploy after the merge, on the owner's yes (`RELEASE_COMMIT`): 0 = approved and read back, 2 = not waiting yet, else STOP. |
 | `release.deployVerification` | Optional shell command that exits 0 only when production is actually serving the merge commit, given as the `RELEASE_COMMIT` environment variable. `release` runs it to prove the deploy is live before release notes are written. `null`: the owner confirms the deploy by hand instead. |
 
 `release.docsRepo` is the pre-1.0 shape — a sibling docs checkout the plugin operated on directly.
