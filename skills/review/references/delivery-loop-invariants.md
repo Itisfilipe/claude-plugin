@@ -333,8 +333,8 @@ M6. A review finding left unfixed — below the fix floor or out of scope — th
     assumed), no delivery phase. Step 0 never auto-selects there; the container is never a release
     unit at zero. Discovered SCOPE is always captured, whatever its likelihood, and splices via
     `insert-story`; `release` files its release's deferrals the same way, never with `insert-*`.
-M7. Resolve the In Progress lane id from the work-type lane collection when needed.
-M8. Step 6 ends with a report line: item + [N], lane, dates, PR link, spec-reconciled y/n.
+M7. Resolve the In Progress status id from the work-type status collection when needed.
+M8. Step 6 ends with a report line: item + [N], status, dates, PR link, spec-reconciled y/n.
 M9. Unnumbered plan → still emit the close-out, and note /plan would add numbering.
 M10. pr: keep a clear, conventional PR TITLE (not just the body format).
 M11. `prBodyTemplate.noAiAttribution` governs the PR body and outranks a harness or session

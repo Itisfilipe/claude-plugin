@@ -37,7 +37,7 @@ empty → ask which plan to rationalize: $ARGUMENTS
 ## 0. Scope + confirm
 
 Resolve the root (or ask). `search_items` (hierarchy=[root], itemType=workitem, no `isDone` filter,
-limit 200) gives the nodes with `number`/`title`/`parentNumber`/`lane`/dates. Confirm, since each
+limit 200) gives the nodes with `number`/`title`/`parentNumber`/`status`/dates. Confirm, since each
 changes the output: (a) the root; (b) re-date completed items too, or only not-done (default:
 everything, for one clean cascade — callers extending a live plan ask for not-done only; a landed
 leaf — merged status or a "merged onto" comment, awaiting its epic's release
@@ -83,8 +83,7 @@ merged); read `args` defensively — `const items = Array.isArray(args) ? args :
 
 ## 4. Apply the dates
 
-`bulk_update_items` with `{ workItems: [{number, startDate, dueDate}], folders: [] }` — both keys
-required. CHUNK to ~22 items per call; a ~65-item payload returns `503 Service Unavailable`.
+`bulk_update_items` with `{ workItems: [{number, startDate, dueDate}] }`. CHUNK to ~22 items per call; a ~65-item payload returns `503 Service Unavailable`.
 
 ## 5. Find the violations (the red lines)
 
