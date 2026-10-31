@@ -8,6 +8,47 @@ for what each version component means here and how a release is cut.
 
 ## [Unreleased]
 
+## [3.15.0] — 2026-10-30
+
+### Added
+
+- **`release.deployApproval`**: an optional command that approves a production deploy that waits
+  for one (a protected environment, a manual gate). The release skill runs it right after the
+  production merge with the merge commit as `RELEASE_COMMIT`, because the owner's yes to the
+  release is the approval of its deploy: exit 0 means approved and read back, `2` means the deploy
+  is not waiting yet and is retried on an interval, anything else stops the release. The owner is
+  never sent to a provider's interface to approve, and a yes voided by a head change voids the
+  approval. Unset, the deploy runs on its own exactly as before. `doctor` checks it resolves; set
+  it by hand (`setup` does not ask).
+
+### Cost
+
+<!-- scripts/measure-cost.sh --table --since devstride--v3.14.0 @ b90948b, method: tokens = ceil(utf8_bytes / 3); bytes as `wc -c` -->
+| File | bytes@devstride--v3.14.0 | tokens@devstride--v3.14.0 | bytes now | tokens now | Δ tokens | budget |
+|---|---:|---:|---:|---:|---:|---:|
+| skills/setup/SKILL.md | 32,096 | 10,699 | 32,096 | 10,699 | +0 | 10,700 |
+| skills/build-item/SKILL.md | 23,999 | 8,000 | 23,999 | 8,000 | +0 | 8,000 |
+| skills/review/SKILL.md | 23,987 | 7,996 | 23,987 | 7,996 | +0 | 8,000 |
+| skills/doctor/SKILL.md | 23,987 | 7,996 | 23,962 | 7,988 | -8 | 8,000 |
+| skills/plan/SKILL.md | 23,888 | 7,963 | 23,888 | 7,963 | +0 | 8,000 |
+| skills/release/SKILL.md | 23,659 | 7,887 | 23,788 | 7,930 | +43 | 8,000 |
+| skills/rebalance/SKILL.md | 17,406 | 5,802 | 17,406 | 5,802 | +0 | 5,900 |
+| skills/ultracode-build/SKILL.md | 14,470 | 4,824 | 14,470 | 4,824 | +0 | 4,900 |
+| skills/pr/SKILL.md | 11,289 | 3,763 | 11,289 | 3,763 | +0 | 3,800 |
+| skills/rationalize-gantt/SKILL.md | 7,936 | 2,646 | 7,936 | 2,646 | +0 | 2,700 |
+| skills/ci-audit/SKILL.md | 7,570 | 2,524 | 7,570 | 2,524 | +0 | 2,600 |
+| skills/create-defect/SKILL.md | 7,481 | 2,494 | 7,481 | 2,494 | +0 | 2,500 |
+| skills/branch-hotfix/SKILL.md | 6,321 | 2,107 | 6,321 | 2,107 | +0 | 2,200 |
+| skills/insert-defect/SKILL.md | 4,714 | 1,572 | 4,714 | 1,572 | +0 | 1,600 |
+| skills/comprehend-plan/SKILL.md | 4,575 | 1,525 | 4,575 | 1,525 | +0 | 1,600 |
+| skills/insert-story/SKILL.md | 4,037 | 1,346 | 4,037 | 1,346 | +0 | 1,400 |
+| skills/create-story/SKILL.md | 3,999 | 1,333 | 3,999 | 1,333 | +0 | 1,400 |
+| skills/push/SKILL.md | 3,005 | 1,002 | 3,005 | 1,002 | +0 | 1,100 |
+| skills/update/SKILL.md | 2,799 | 933 | 2,799 | 933 | +0 | 1,000 |
+| skills/branch-feature/SKILL.md | 2,577 | 859 | 2,577 | 859 | +0 | 900 |
+| alwaysOn.context (skill listing) | 3,697 | 1,233 | 3,697 | 1,233 | +0 | 1,300 |
+| **total (bodies)** | 249,795 | 83,271 | 249,899 | 83,306 | +35 | |
+
 ## [3.14.0] — 2026-10-30
 
 ### Added
@@ -2072,7 +2113,8 @@ holes found while fixing them.
 - Initial scaffold: plugin manifest, marketplace entry, MIT license, and repository conventions.
   Installed an empty plugin — no skills yet.
 
-[unreleased]: https://github.com/devstride/claude-plugin/compare/devstride--v3.14.0...HEAD
+[unreleased]: https://github.com/devstride/claude-plugin/compare/devstride--v3.15.0...HEAD
+[3.15.0]: https://github.com/devstride/claude-plugin/compare/devstride--v3.14.0...devstride--v3.15.0
 [3.14.0]: https://github.com/devstride/claude-plugin/compare/devstride--v3.13.0...devstride--v3.14.0
 [3.13.0]: https://github.com/devstride/claude-plugin/compare/devstride--v3.12.0...devstride--v3.13.0
 [3.12.0]: https://github.com/devstride/claude-plugin/compare/devstride--v3.11.0...devstride--v3.12.0
