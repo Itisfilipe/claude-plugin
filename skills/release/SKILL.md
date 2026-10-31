@@ -26,7 +26,8 @@ Optional arguments — documentation switches and a scope: $ARGUMENTS
 
 - **Config wins.** Load `.claude/ds-config.json` first: `release.productionBranch`,
   `release.releaseSource`, `release.autoDeployOnMerge` (a plain-English string quoted back to the
-  owner — never assume a provider), `release.deployVerification`, `release.postDeployCheckSkill`
+  owner — never assume a provider), `release.deployApproval`, `release.deployVerification`,
+  `release.postDeployCheckSkill`
   (contract: `${CLAUDE_PLUGIN_ROOT}/skills/release/references/post-deploy-check.md`),
   `docs.updateSkill` / `docs.releaseNotesSkill` (LOCAL skill names; contract and authority:
   `${CLAUDE_PLUGIN_ROOT}/skills/release/references/docs-hooks.md`), `baseBranch`,
@@ -252,8 +253,9 @@ Build the `production-release` payload from step 0's delta, recomputed over
   paginated **zero-unresolved-threads** check still reads zero (a late comment is replied-to AND
   resolved via `review` step 6 first, never merged over). Then `gh pr merge <n> --merge` — a merge
   commit, never `--delete-branch`.
-- The deploy then runs on its own: note it is in flight and that the owner watches their own
-  dashboard. Never trigger or gate it yourself.
+- `release.deployApproval` set → the yes approves the deploy: run it with `RELEASE_COMMIT=<merge
+  sha>`; 0 = approved, 2 = retry (bounded), else STOP; never send the owner to approve. Unset →
+  the deploy runs on its own; never gate it.
 
 ## 5. After the merge — deploy, health, docs, notes
 
