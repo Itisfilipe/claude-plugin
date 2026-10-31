@@ -74,7 +74,7 @@ to plan under: $ARGUMENTS
   - **An argument that disagrees with an existing marker is a QUESTION, never an override** — the
     marker is a recorded decision; ask which profile this pass plans under ("change it" means
     `rebalance` first, per step 2).
-- `get_work_type_hierarchy` and `get_workspace_context` give the org's REAL type names, lanes and
+- `get_work_type_hierarchy` and `get_workspace_context` give the org's REAL type names, statuses and
   priorities. **This runtime resolution is normative**: plan root and intermediate containers, the
   **release unit** (the level whose completion cuts a release — this org's Epic) and the executable
   **leaf** types (this org's Story/Defect) all bind to what it returns. Never assume canonical

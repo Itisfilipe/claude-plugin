@@ -25,7 +25,7 @@ any sequenced plan. Work that belongs in a plan's dependency chain goes through 
     `get_work_type_hierarchy`) and NEVER guess a parent — the backend rejects illegal
     parent/type pairings anyway.
   - **Which board?** A triage/kanban board or a current cycle/sprint: list with `list_boards`,
-    then `get_board` for its id and default not-started lane. A one-off must be VISIBLE on a
+    then `get_board` for its id and default not-started status. A one-off must be VISIBLE on a
     board — unlike sequenced-plan items, which live on the Gantt.
   - **Assignee = the current user by default.** `whoami` (identity → username) →
     `assigneeUsername`; state who that resolved to and let the user name someone else before
@@ -36,7 +36,7 @@ any sequenced plan. Work that belongs in a plan's dependency chain goes through 
 ## Step 1 — create the item
 
 - `create_item`: workType = the skill's leaf type; `parentNumber` = the resolved parent;
-  `boardId` = the chosen board with its not-started `laneId`; `assigneeUsername`; `title` +
+  `boardId` = the chosen board with its not-started `statusId`; `assigneeUsername`; `title` +
   `description` written as a REAL one-paragraph spec (the create mechanics of
   `splice-mechanics.md` step 3, minus its priority rule (priority is step 0's)) — honest, not the raw argument text; `ultracode-build` validates
   against it later.
@@ -45,7 +45,7 @@ any sequenced plan. Work that belongs in a plan's dependency chain goes through 
   sequenced-plan concept — `plan` step 6.5). The title stays plain.
 - Wire NO `blocked_by`/`blocks` edges — there is no chain to splice into. That missing splice is
   exactly what separates `create-*` from `insert-*`.
-- Report the created number, title, parent, board, lane and assignee before delivery.
+- Report the created number, title, parent, board, status and assignee before delivery.
 - **The number the API returns is the ONLY number to use downstream.** Never predict, reuse or
   invent one: it goes into branch names, commit trailers, PR bodies and code comments, and a
   composed value addresses somebody else's live item (item numbers are LOOKED UP, never

@@ -40,14 +40,14 @@ grouping level (resolve unfamiliar type names with `get_work_type_hierarchy`).
 ## 1. Pull the descendant tree
 
 `search_items` (hierarchy=[root], itemType=workitem, no `isDone` filter, limit 200) for every
-descendant's number, title, workType, parentNumber, lane and dates. Over ~200 items: page, or scope
+descendant's number, title, workType, parentNumber, status and dates. Over ~200 items: page, or scope
 to an explicit sub-branch and tell the user you scoped it.
 
 ## 2. Deep-read every node
 
-For the root and every descendant: `get_item(view:"full")` (description, lane, dates,
+For the root and every descendant: `get_item(view:"full")` (description, status, dates,
 relationships) and `list_comments` (whole thread). Fan out with a `Workflow`, ~8–10 items per
-agent, each returning a SUMMARIZED record, never raw HTML — `{number, title, workType, lane,
+agent, each returning a SUMMARIZED record, never raw HTML — `{number, title, workType, status,
 description_summary, key_comments, relationships: {blocked_by, blocks}}`. Read `args` defensively
 (`const items = Array.isArray(args) ? args : JSON.parse(args)` — it can arrive JSON-stringified).
 
@@ -57,7 +57,7 @@ Organize by the tree's own hierarchy (root → grouping items → leaves), not a
 
 - **What the plan is for** — intent from descriptions reconciled against comments; a comment that
   contradicts or supersedes its description is a live discrepancy to surface, never silently resolved.
-- **Where it stands** — lane distribution (Done / landed / In Progress / open; landed = in the
+- **Where it stands** — status distribution (Done / landed / In Progress / open; landed = in the
   merged status or carrying a "merged onto" comment, awaiting its epic's release), the critical
   path, and the item `/devstride:build-item` would pick next per the canonical rule in
   `${CLAUDE_PLUGIN_ROOT}/skills/build-item/references/next-unblocked.md`.

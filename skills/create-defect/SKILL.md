@@ -59,7 +59,7 @@ delivery profile.
   against — the story or defect under build, or the release unit for an epic-release review —
   using the relationship type the `add_relationship` schema exposes for related-to; read the
   schema, never assume the literal.
-- **Skip the placement interview.** No board, lane, priority or assignee questions: this mode
+- **Skip the placement interview.** No board, status, priority or assignee questions: this mode
   normally runs unattended inside a build loop. Set any of them only if a user is present and
   asks for it.
 - **SKIP phase B.** NEVER invoke `build-item` for a deferred defect — deferral means it is not

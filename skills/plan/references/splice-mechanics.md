@@ -18,7 +18,7 @@ Numbering is NOT restated here — it lives in `execution-order-numbering.md`.
   housing container below it (step 2); a lower-level container (this org's Capability or Epic)
   IS the direct parent. No anchor → ask which parent item; never guess a plan to insert into.
 - Pull the descendant tree: `search_items` (hierarchy=[anchor], itemType=workitem, no `isDone`
-  filter, limit 200) — containers vs executable leaves, their lanes, their dates.
+  filter, limit 200) — containers vs executable leaves, their statuses, their dates.
 - `search_items` and default `get_item` projections OMIT `relationships`. For each candidate
   container fetch `blocked_by`/`blocks` explicitly with
   `get_item(view:"full", fields:["number","relationships"])`; for a big tree fan this out with a
@@ -112,7 +112,7 @@ Unnumbered plan → that file's handling: no prefix, and say so in the report.
 ## Step 5 — verify and report
 
 - `get_item` the `<leaf>` back: correct parent, prefix sorts between its neighbours, edges match
-  the splice, dates today/today, lane = default (not started).
+  the splice, dates today/today, status = default (not started).
 - **Re-derive what `build-item` would actually pick next** with `next-unblocked.md` (worked
   consequence included) against the current plan, never assuming the splice worked. If it picks
   something else, say so plainly — the user may raise the container's dates or accept a later slot.
