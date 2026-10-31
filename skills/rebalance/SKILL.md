@@ -61,7 +61,7 @@ $ARGUMENTS
   the retired `enterprise` → offer `extended` plus the contract's override recipe). A wrong root
   re-slices somebody else's plan; a guessed profile is the wrong grain at production speed. Note
   `--dry-run`.
-- **Roles at runtime.** `get_work_type_hierarchy` (and `get_workspace_context` for lanes and
+- **Roles at runtime.** `get_work_type_hierarchy` (and `get_workspace_context` for statuses and
   priorities) decides which types are **leaves**, which level is the **release unit** (where
   `/devstride:build-item` branches and releases) and which are plain containers above it; bind every
   role word here to what it returns. Ambiguous release-unit level → `hierarchyRoles.releaseUnit` in

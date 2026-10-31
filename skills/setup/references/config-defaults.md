@@ -682,6 +682,7 @@ example above is a shape, not a recommendation for any particular repository. Co
     "updateOnEpicRelease": false
   },
   "release": {
+    "deployApproval": null,
     "deployVerification": null
   }
 }

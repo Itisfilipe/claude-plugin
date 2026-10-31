@@ -7,7 +7,7 @@ description: "Orchestrate one DevStride work item end-to-end — select, branch,
 
 **Goal:** ONE DevStride one-day leaf item (this org's Story or Defect types) delivered end-to-end —
 select → In Progress → branch → build → review → merge → ritual → sync → next. This ORCHESTRATOR
-owns ONLY the DevStride glue (selection, lane moves, the completion ritual); it composes the other
+owns ONLY the DevStride glue (selection, status moves, the completion ritual); it composes the other
 delivery skills — **invoke them by name; never re-spell what they do.**
 
 Argument — an item number, or `next`/empty for the next unblocked item; `next under I20100`, or
@@ -17,7 +17,7 @@ one-off: $ARGUMENTS
 
 ## Hard floors — no profile, override or shortcut removes these
 
-- **The DevStride MCP targets PRODUCTION.** Lane moves, comments and the ritual write live items
+- **The DevStride MCP targets PRODUCTION.** Status moves, comments and the ritual write live items
   immediately; the MCP cannot exercise branch code.
 - **`.claude/ds-config.json` wins over every literal here**; re-read it EVERY iteration. Commands
   (verify/test/lint, regen, local-environment, any pool or secrets CLI a repo documents) come from
@@ -165,7 +165,7 @@ ask. **Steps 1–6 run VERBATIM.** Deltas:
 
 ## 1. Mark In Progress
 
-`update_item` → In Progress (lane id from the work type's lane collection via
+`update_item` → In Progress (status id from the work type's collection in
 `get_workspace_context`); confirm it moved before branching.
 
 ## 2. Branch
@@ -262,7 +262,7 @@ is `review` step 7's; step 5 never reads `skipping` as green.
   **Deviations** list with one-line rationales, an **As shipped** summary — citing the artifact that
   EXISTS (4b its PR; 4a its merge SHA + branch). None → "shipped as specified". These are exactly
   step 3/4's deviations.
-- **Report** item + `[N]`, lane, dates, PR link or SHA + branch, profile + source, reconciled y/n.
+- **Report** item + `[N]`, status, dates, PR link or SHA + branch, profile + source, reconciled y/n.
 
 ## 6.5 Capture untracked findings as tracked items
 
@@ -322,7 +322,7 @@ unit at zero and before cutting the release PR.**
   local pre-ship suites remain the callers' step-2b responsibility.
 - **Merge** `gh pr merge <n> --merge` once green and settled (landed set captured first), then
   **close out** (`next-unblocked.md`): `add_comment` on the RELEASE-UNIT item (release PR, leaves,
-  date), Done if lanes are tracked there, THEN landed leaves → Done, **linking the release PR onto
+  date), Done if its status is tracked, THEN landed leaves → Done, **linking the release PR onto
   every leaf** (the close-out comment, or `link_pull_request`). Delete the epic branch **only if
   `epicIntegrationBranches.deleteBranchAfterRelease`** — false retains it.
 - **Docs STAGE, never publish** — only when `docs.updateOnEpicRelease` is true (else silent):
