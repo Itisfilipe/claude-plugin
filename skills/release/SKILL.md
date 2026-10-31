@@ -253,9 +253,8 @@ Build the `production-release` payload from step 0's delta, recomputed over
   paginated **zero-unresolved-threads** check still reads zero (a late comment is replied-to AND
   resolved via `review` step 6 first, never merged over). Then `gh pr merge <n> --merge` — a merge
   commit, never `--delete-branch`.
-- `release.deployApproval` set → the yes approves the deploy: run it with `RELEASE_COMMIT=<merge
-  sha>`; 0 = approved, 2 = retry (bounded), else STOP; never send the owner to approve. Unset →
-  the deploy runs on its own; never gate it.
+- The deploy then runs on its own (with `release.deployApproval`, 5a approves it on this yes):
+  note it is in flight; never trigger or gate it otherwise.
 
 ## 5. After the merge — deploy, health, docs, notes
 
@@ -266,6 +265,9 @@ live — text written between "merged" and "deployed" describes the future.
 
 - **Merge**: the PR reads `MERGED`; capture the merge commit and timestamp into the payload. `live`
   stays `false` until the deploy is confirmed, then `true` — the flag the local skills publish on.
+- **Approve**: `release.deployApproval` set (an adopted merged release too) → the owner's yes
+  approves the deploy: run it with `RELEASE_COMMIT=<merge sha>`; 0 = approved and read back, 2 =
+  retry (bounded), else STOP; never send the owner to approve.
 - **Deploy**: `release.deployVerification` set → run it with `RELEASE_COMMIT=<merge sha>`; exit 0
   confirms; non-zero → retry on an interval suited to the deploy; still failing → report it
   unconfirmed and STOP (no 5b or 5c). Unset → ask the owner to confirm — a legitimate pause even

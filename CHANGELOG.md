@@ -14,7 +14,7 @@ for what each version component means here and how a release is cut.
 
 - **`release.deployApproval`**: an optional command that approves a production deploy that waits
   for one (a protected environment, a manual gate). The release skill runs it right after the
-  production merge with the merge commit as `RELEASE_COMMIT`, because the owner's yes to the
+  production merge (step 5a, so a resumed release approves too) with the merge commit as `RELEASE_COMMIT`, because the owner's yes to the
   release is the approval of its deploy: exit 0 means approved and read back, `2` means the deploy
   is not waiting yet and is retried on an interval, anything else stops the release. The owner is
   never sent to a provider's interface to approve, and a yes voided by a head change voids the
